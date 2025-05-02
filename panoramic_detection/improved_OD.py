@@ -3,6 +3,7 @@ import numpy as np
 import os, cv2
 import torch
 import torchvision
+from ultralytics import YOLO
 
 # import some common detectron2 utilities
 from detectron2 import model_zoo
@@ -12,13 +13,12 @@ from detectron2.config import get_cfg
 # import the Perspective_and_Equirectangular library
 import lib.Equirec2Perspec as E2P
 
-
 import time
 from detectron2.layers import batched_nms
 
+
 # function used to load a YOLO or Faster RCNN model according to the users' demands
 def load_model(model_type, input_size=1280, score_threshold=0.4, nms_threshold=0.45):
-
     # first get the default config
     cfg = get_cfg()
 
@@ -49,7 +49,8 @@ def load_model(model_type, input_size=1280, score_threshold=0.4, nms_threshold=0
     predictor_faster_RCNN = DefaultPredictor(cfg)
 
     # choose a model from YOLO v5 family
-    predictor_YOLO = torch.hub.load("ultralytics/yolov5", "yolov5m6")
+    # predictor_YOLO = torch.hub.load("ultralytics/yolov5", "yolov5m6")
+    predictor_YOLO = YOLO("yolo12n.pt")
     predictor_YOLO.conf = score_threshold  # set the threshold of the confidence score
     predictor_YOLO.iou = nms_threshold  # set the NMS threshold
     predictor_YOLO.agnostic = True  # NMS class-agnostic (i.e., only the bboxes with the same category can be eliminated after NMS)
@@ -92,20 +93,19 @@ def equir2pers(input_img, FOV, THETAs, PHIs, output_height, output_width):
 # function used to reproject the bboxes on the sub images (perspective) to the original image (equirectangular)
 # and find the bboxes whose left/right border is tangent to a border of the sub image (i.e., distance < threshold_of_boundary)
 def reproject_bboxes(
-    bboxes,
-    lon_map_original,
-    lat_map_original,
-    classes,
-    scores,
-    interval,
-    num_of_subimage,
-    input_video_width,
-    input_video_height,
-    num_of_subimages,
-    threshold_of_boundary,
-    is_split_image2=True,
+        bboxes,
+        lon_map_original,
+        lat_map_original,
+        classes,
+        scores,
+        interval,
+        num_of_subimage,
+        input_video_width,
+        input_video_height,
+        num_of_subimages,
+        threshold_of_boundary,
+        is_split_image2=True,
 ):
-
     # list for storing the new bboxes,classes and scores after reprojection
     new_bboxes = []
     new_classes = []
@@ -133,16 +133,18 @@ def reproject_bboxes(
         right_bottom_x = int(bbox[2])
         right_bottom_y = int(bbox[3])
 
-        # only reproject the bboxes when they are not totally inside the overlapped area and their y-values are less than 70 degrees (or sometimes the backpack of the cyclist will be incorrectly detected as a car)
+        # only reproject the bboxes when they are not totally inside the overlapped area and their y-values are less
+        # than 70 degrees (or sometimes the backpack of the cyclist will be incorrectly detected as a car)
         if (
-            margin
-            <= ((left_top_x + right_bottom_x) / 2)
-            <= (lon_map_original.shape[0] - margin)
-            and left_top_y <= lon_map_original.shape[0] / 120 * 70
+                margin
+                <= ((left_top_x + right_bottom_x) / 2)
+                <= (lon_map_original.shape[0] - margin)
+                and left_top_y <= lon_map_original.shape[0] / 120 * 70
         ):
 
-            # since for an a*b sub image, the size of lon_map and lat_map is (a-1)*(b-1), when right_bottom_x or right_bottom_y equals a or b,
-            # to get the corresponding value in lon_map and lat_map (which represent the corresponding position on the original image), we have to subtract them by 1.
+            # since for an a*b sub image, the size of lon_map and lat_map is (a-1)*(b-1), when right_bottom_x or
+            # right_bottom_y equals a or b, to get the corresponding value in lon_map and lat_map (which represent
+            # the corresponding position on the original image), we have to subtract them by 1.
             if right_bottom_x == lon_map_original.shape[0]:
                 right_bottom_x -= 1
             if right_bottom_y == lon_map_original.shape[1]:
@@ -150,9 +152,7 @@ def reproject_bboxes(
 
             # check if a bbox coincides with the left/right boundaries of the sub image, if yes, assign its index to left_boundary_box/right_boundary_box
             # if the bbox is large (>subimage size/5), use the threshold to do the judgement
-            if (right_bottom_x - left_top_x) * (
-                right_bottom_y - left_top_y
-            ) < lon_map_original.shape[0] * lon_map_original.shape[0] / 5:
+            if (right_bottom_x - left_top_x) * (right_bottom_y - left_top_y) < lon_map_original.shape[0] * lon_map_original.shape[0] / 5:
                 if left_top_x <= threshold_of_boundary:
                     left_boundary_box = index
                 if right_bottom_x >= lon_map_original.shape[0] - threshold_of_boundary:
@@ -162,11 +162,11 @@ def reproject_bboxes(
             # (No why, just based on my experience ^_^)
             else:
                 if left_top_x <= (
-                    threshold_of_boundary + 15 * int(lon_map_original.shape[0] / 640)
+                        threshold_of_boundary + 15 * int(lon_map_original.shape[0] / 640)
                 ):
                     left_boundary_box = index
                 if right_bottom_x >= lon_map_original.shape[0] - (
-                    threshold_of_boundary + 15 * int(lon_map_original.shape[0] / 640)
+                        threshold_of_boundary + 15 * int(lon_map_original.shape[0] / 640)
                 ):
                     right_boundary_box = index
 
@@ -177,9 +177,9 @@ def reproject_bboxes(
             # if the current sub image is the one which crosses the boundary (e.g., image 2 when the number of sub image is 4)
             # and the current bbox is across the center line
             if (
-                num_of_subimage == num_of_splited_subimage
-                and left_top_x <= int(lon_map_original.shape[0] / 2) - 1
-                and right_bottom_x >= int(lon_map_original.shape[0] / 2)
+                    num_of_subimage == num_of_splited_subimage
+                    and left_top_x <= int(lon_map_original.shape[0] / 2) - 1
+                    and right_bottom_x >= int(lon_map_original.shape[0] / 2)
             ):
                 # lists used to store the x coordinates on the original image of each point on the left/right part of the bbox
                 xs_left = []
@@ -202,7 +202,7 @@ def reproject_bboxes(
 
                 # calculation for the left part of the top and bottom borders
                 for i in range(
-                    left_top_x, int(lon_map_original.shape[0] / 2) - 1, interval
+                        left_top_x, int(lon_map_original.shape[0] / 2) - 1, interval
                 ):
                     x = int(round(lon_map_original[left_top_y, i]))
                     y = int(round(lat_map_original[left_top_y, i]))
@@ -217,7 +217,7 @@ def reproject_bboxes(
 
                 # calculation for the right part of the top and bottom borders
                 for i in range(
-                    int(lon_map_original.shape[0] / 2), right_bottom_x, interval
+                        int(lon_map_original.shape[0] / 2), right_bottom_x, interval
                 ):
                     x = int(round(lon_map_original[left_top_y, i]))
                     y = int(round(lat_map_original[left_top_y, i]))
@@ -258,8 +258,8 @@ def reproject_bboxes(
             else:
                 # in case the interval is set larger than the length of the border, if so, set it as the length of the short side of the bbox
                 if (
-                    right_bottom_x - left_top_x < interval
-                    or right_bottom_y - left_top_y < interval
+                        right_bottom_x - left_top_x < interval
+                        or right_bottom_y - left_top_y < interval
                 ):
                     interval = min(
                         right_bottom_x - left_top_x, right_bottom_y - left_top_y
@@ -285,7 +285,7 @@ def reproject_bboxes(
                     xs.append(x)
                     ys.append(y)
 
-                # create one bbox with the MBR
+                # create one bbox with the MBR (Minimum bounding rectangles)
                 xmax = max(xs)
                 xmin = min(xs)
                 ymax = max(ys)
@@ -312,9 +312,8 @@ def number_of_left_and_right_boundary(number_of_subimage):
 
 # function used to merge the bounding boxes of the objects which are shown in several sub images
 def merge_bbox_across_boundary(
-    bboxes_all, classes_all, scores_all, width, height, bboxes_boundary
+        bboxes_all, classes_all, scores_all, width, height, bboxes_boundary
 ):
-
     # list to store the index of the bbox to be deleted after we merge them
     bboxes_to_delete = []
 
@@ -324,7 +323,7 @@ def merge_bbox_across_boundary(
         if bboxes_boundary[i] != None:
             #  although the overlapped area is 30 degree in width, here we set the threshold as 40, for after some tests, it seems 40 can get better performance.
             if (
-                bboxes_all[bboxes_boundary[i]][2] - bboxes_all[bboxes_boundary[i]][0]
+                    bboxes_all[bboxes_boundary[i]][2] - bboxes_all[bboxes_boundary[i]][0]
             ) <= int(width / 360 * 40):
                 bboxes_to_delete.append(bboxes_boundary[i])
                 bboxes_boundary[i] = None
@@ -341,17 +340,17 @@ def merge_bbox_across_boundary(
 
     # if the object crosses all the 4 overlapped areas (12 34 56 78)
     if (
-        bboxes_boundary1 != None
-        and bboxes_boundary2 != None
-        and bboxes_boundary3 != None
-        and bboxes_boundary4 != None
-        and bboxes_boundary5 != None
-        and bboxes_boundary6 != None
-        and bboxes_boundary7 != None
-        and bboxes_boundary8 != None
-        and (bboxes_boundary1 == bboxes_boundary4)
-        and (bboxes_boundary3 == bboxes_boundary6)
-        and (bboxes_boundary5 == bboxes_boundary8)
+            bboxes_boundary1 != None
+            and bboxes_boundary2 != None
+            and bboxes_boundary3 != None
+            and bboxes_boundary4 != None
+            and bboxes_boundary5 != None
+            and bboxes_boundary6 != None
+            and bboxes_boundary7 != None
+            and bboxes_boundary8 != None
+            and (bboxes_boundary1 == bboxes_boundary4)
+            and (bboxes_boundary3 == bboxes_boundary6)
+            and (bboxes_boundary5 == bboxes_boundary8)
     ):
         bboxes_all.extend(
             MBR_bboxes(
@@ -424,14 +423,14 @@ def merge_bbox_across_boundary(
     else:
         # if the object crosses 3 overlapped areas (12 34 56)
         if (
-            bboxes_boundary1 != None
-            and bboxes_boundary2 != None
-            and bboxes_boundary3 != None
-            and bboxes_boundary4 != None
-            and bboxes_boundary5 != None
-            and bboxes_boundary6 != None
-            and (bboxes_boundary1 == bboxes_boundary4)
-            and (bboxes_boundary3 == bboxes_boundary6)
+                bboxes_boundary1 != None
+                and bboxes_boundary2 != None
+                and bboxes_boundary3 != None
+                and bboxes_boundary4 != None
+                and bboxes_boundary5 != None
+                and bboxes_boundary6 != None
+                and (bboxes_boundary1 == bboxes_boundary4)
+                and (bboxes_boundary3 == bboxes_boundary6)
         ):
             bboxes_all.extend(
                 MBR_bboxes(
@@ -526,14 +525,14 @@ def merge_bbox_across_boundary(
 
         # if the object crosses 3 overlapped areas (34 56 78)
         if (
-            bboxes_boundary3 != None
-            and bboxes_boundary4 != None
-            and bboxes_boundary5 != None
-            and bboxes_boundary6 != None
-            and bboxes_boundary7 != None
-            and bboxes_boundary8 != None
-            and (bboxes_boundary3 == bboxes_boundary6)
-            and (bboxes_boundary5 == bboxes_boundary8)
+                bboxes_boundary3 != None
+                and bboxes_boundary4 != None
+                and bboxes_boundary5 != None
+                and bboxes_boundary6 != None
+                and bboxes_boundary7 != None
+                and bboxes_boundary8 != None
+                and (bboxes_boundary3 == bboxes_boundary6)
+                and (bboxes_boundary5 == bboxes_boundary8)
         ):
             bboxes_all.extend(
                 MBR_bboxes(
@@ -629,11 +628,11 @@ def merge_bbox_across_boundary(
         else:
             # if the object crosses 2 overlapped areas (12 34)
             if (
-                bboxes_boundary1 != None
-                and bboxes_boundary2 != None
-                and bboxes_boundary3 != None
-                and bboxes_boundary4 != None
-                and (bboxes_boundary1 == bboxes_boundary4)
+                    bboxes_boundary1 != None
+                    and bboxes_boundary2 != None
+                    and bboxes_boundary3 != None
+                    and bboxes_boundary4 != None
+                    and (bboxes_boundary1 == bboxes_boundary4)
             ):
                 bboxes_all.extend(
                     MBR_bboxes(
@@ -768,11 +767,11 @@ def merge_bbox_across_boundary(
 
             # if the object crosses 2 overlapped areas (34 56)
             if (
-                bboxes_boundary3 != None
-                and bboxes_boundary4 != None
-                and bboxes_boundary5 != None
-                and bboxes_boundary6 != None
-                and (bboxes_boundary3 == bboxes_boundary6)
+                    bboxes_boundary3 != None
+                    and bboxes_boundary4 != None
+                    and bboxes_boundary5 != None
+                    and bboxes_boundary6 != None
+                    and (bboxes_boundary3 == bboxes_boundary6)
             ):
                 bboxes_all.extend(
                     MBR_bboxes(
@@ -907,11 +906,11 @@ def merge_bbox_across_boundary(
 
             # if the object crosses 2 overlapped areas (56 78)
             if (
-                bboxes_boundary5 != None
-                and bboxes_boundary6 != None
-                and bboxes_boundary7 != None
-                and bboxes_boundary8 != None
-                and (bboxes_boundary5 == bboxes_boundary8)
+                    bboxes_boundary5 != None
+                    and bboxes_boundary6 != None
+                    and bboxes_boundary7 != None
+                    and bboxes_boundary8 != None
+                    and (bboxes_boundary5 == bboxes_boundary8)
             ):
                 bboxes_all.extend(
                     MBR_bboxes(
@@ -1252,6 +1251,13 @@ def filter_classes(bboxes_all, classes_all, scores_all, class_needed):
     bboxes_all = bboxes_all.tolist()
     classes_all = classes_all.tolist()
     scores_all = scores_all.tolist()
+    if type(bboxes_all) != list:
+        bboxes_all = [bboxes_all]
+    if type(classes_all) != list:
+        classes_all = [classes_all]
+    if type(scores_all) != list:
+        scores_all = [scores_all]
+
     # remove the bboxes which are not belong to the needed classes from the lists
     for i in range(len(classes_all), 0, -1):
         if classes_all[i - 1] not in class_needed:
@@ -1290,21 +1296,20 @@ def xyxy2xcycwh(bboxes):
 
 # function used to do object detection on one image frame
 def predict_one_frame(
-    FOV,
-    THETAs,
-    PHIs,
-    im,
-    predictor,
-    video_width,
-    video_height,
-    sub_image_width,
-    classes_to_detect=[0, 1, 2, 3, 5, 7, 9],
-    is_project_class=False,
-    use_mymodel=True,
-    model="Faster RCNN",
-    split_image2=True,
+        FOV,
+        THETAs,
+        PHIs,
+        im,
+        predictor,
+        video_width,
+        video_height,
+        sub_image_width,
+        classes_to_detect=[0, 1, 2, 3, 5, 7, 9],
+        is_project_class=False,
+        use_mymodel=True,
+        model="Faster RCNN",
+        split_image2=True,
 ):
-
     # for checking the processing speed, record the current time first
     time1 = time.time()
 
@@ -1398,7 +1403,8 @@ def predict_one_frame(
                 subimgs[i] = cv2.cvtColor(subimgs[i], cv2.COLOR_BGR2RGB)
 
             # YOLO supports detecting several images at the same time, so input all the sub images at once to the predictor
-            results = predictor(subimgs, size=sub_image_width)  # includes NMS
+            # results = predictor(subimgs, size=sub_image_width)  # includes NMS
+            results = predictor(subimgs, imgsz=sub_image_width)  # yolov8 NMS included
 
             # --------  if you want to save and check the detail of the results on each sub image, run the code below  ----------
             # results.save()
@@ -1407,17 +1413,23 @@ def predict_one_frame(
             # for each sub image
             for i in range(len(subimgs)):
                 # Originally, YOLO outputs the positions using the relative coordinates [0-1], so transform the output format by multiplying by the width/height of the sub image
+                # bboxes = (
+                #         results.xyxyn[i].cpu().numpy()[:, 0:4]
+                #         * [
+                #             sub_image_width,
+                #             sub_image_width,
+                #             sub_image_width,
+                #             sub_image_width,
+                #         ]
+                # ).tolist()
+                # classes = list(map(int, results.xyxyn[i].cpu().numpy()[:, 5].tolist()))
+                # scores = results.xyxyn[i].cpu().numpy()[:, 4].tolist()
+                # yolov8
                 bboxes = (
-                    results.xyxyn[i].cpu().numpy()[:, 0:4]
-                    * [
-                        sub_image_width,
-                        sub_image_width,
-                        sub_image_width,
-                        sub_image_width,
-                    ]
+                    results[i].boxes.xyxy.cpu().numpy()
                 ).tolist()
-                classes = list(map(int, results.xyxyn[i].cpu().numpy()[:, 5].tolist()))
-                scores = results.xyxyn[i].cpu().numpy()[:, 4].tolist()
+                classes = list(map(int, results[i].boxes.cls.cpu().numpy().tolist()))
+                scores = results[i].boxes.conf.cpu().numpy().tolist()
 
                 # for each bbox in the current sub image, reproject it to the original image
                 (
@@ -1498,24 +1510,39 @@ def predict_one_frame(
             keep_boxes = torchvision.ops.nms(
                 torch.tensor(bboxes_all), torch.tensor(scores_all), 0.45
             )
-            bboxes_all = (
-                outputs1["instances"].pred_boxes.tensor.cpu().numpy()[keep_boxes]
-            )
-            classes_all = outputs1["instances"].pred_classes.cpu().numpy()[keep_boxes]
-            scores_all = outputs1["instances"].scores.cpu().numpy()[keep_boxes]
+            if len(keep_boxes) == 1:
+                bboxes_all = bboxes_all[keep_boxes: keep_boxes + 1, :]
+            else:
+                bboxes_all = bboxes_all[keep_boxes, :]
+            if len(keep_boxes) == 1:
+                classes_all = classes_all[keep_boxes: keep_boxes + 1]
+            else:
+                classes_all = classes_all[keep_boxes]
+            if len(keep_boxes) == 1:
+                scores_all = scores_all[keep_boxes: keep_boxes + 1]
+            else:
+                scores_all = scores_all[keep_boxes]
 
         # if a YOLO model is being used
         elif model == "YOLO":
             # change the color from BGR to RGB
             im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
             # get the outputs
-            results = predictor(im, size=sub_image_width)  # NMS included
+            # results = predictor(im, size=sub_image_width)  # yolov5
+            results = predictor(im, imgsz=sub_image_width)  # yolov8 NMS included
+            # bboxes_all = (
+            #         results.xyxyn[0].cpu().numpy()[:, 0:4]
+            #         * [video_width, video_height, video_width, video_height]
+            # ).tolist()
+            # classes_all = list(map(int, results.xyxyn[0].cpu().numpy()[:, 5].tolist()))
+            # scores_all = results.xyxyn[0].cpu().numpy()[:, 4].tolist()
+
+            # yolov8
             bboxes_all = (
-                results.xyxyn[0].cpu().numpy()[:, 0:4]
-                * [video_width, video_height, video_width, video_height]
+                results[0].boxes.xyxy.cpu().numpy()
             ).tolist()
-            classes_all = list(map(int, results.xyxyn[0].cpu().numpy()[:, 5].tolist()))
-            scores_all = results.xyxyn[0].cpu().numpy()[:, 4].tolist()
+            classes_all = list(map(int, results[0].boxes.cls.cpu().numpy().tolist()))
+            scores_all = results[0].boxes.conf.cpu().numpy().tolist()
 
         # only keep the instances of the classes we need (person, bike, car, motorbike, bus, truck, traffic light)
         bboxes_all, classes_all, scores_all = filter_classes(
