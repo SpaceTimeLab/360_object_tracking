@@ -1537,7 +1537,7 @@ def predict_one_frame(
             # classes_all = list(map(int, results.xyxyn[0].cpu().numpy()[:, 5].tolist()))
             # scores_all = results.xyxyn[0].cpu().numpy()[:, 4].tolist()
 
-            # yolov8
+            # yolov8, bboxes sizes might need resizing to match the image size
             bboxes_all = (
                 results[0].boxes.xyxy.cpu().numpy()
             ).tolist()

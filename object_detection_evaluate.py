@@ -14,25 +14,12 @@ import random
 import cv2
 from detectron2.evaluation import COCOEvaluator
 from detectron2.evaluation import inference_on_dataset
+import argparse
+from ultralytics import YOLO
 
-def main():
-    # make sure INFO (or DEBUG) logs go to your console
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger("detectron2.engine.defaults").setLevel(logging.INFO)
-
-    # 1. Define your “real” COCO IDs and your class names:
-    COCO_IDS = [0, 1, 2, 3, 5, 7, 9]
-    CLASS_NAMES = ["person", "bicycle", "car", "motorbike", "bus", "truck", "traffic light"]
-    # build a quick reverse‐map: COCO_id → contiguous (0–6)
-    COCO2CONT = {c: i for i, c in enumerate(COCO_IDS)}
+def load_model(model_type, min_size, max_size, score_threshold, nms_threshold):
+    # first get the default config
     cfg = get_cfg()
-
-    # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
-
-    min_size = 640
-    max_size = 10000
-    score_threshold = 0.6
-    nms_threshold=0.5
 
     # choose a model from detectron2's model zoo
     cfg.merge_from_file(
@@ -55,6 +42,44 @@ def main():
         cfg.MODEL.DEVICE = "cuda"
     else:
         cfg.MODEL.DEVICE = "cpu"
+
+    # create a predictor instance with the config above
+    predictor_faster_rcnn = DefaultPredictor(cfg).model
+    if model_type == "Faster RCNN":
+        return predictor_faster_rcnn, cfg, None
+    elif model_type == "YOLO":
+        predictor_yolo = YOLO("yolo12n.pt")
+        yolo_cfg = dict()
+        # min_size == 0 means we don't do resizing on the input image
+        if min_size != 0:
+            yolo_cfg['imgsz'] = (min_size, 2 * min_size)
+        yolo_cfg['conf'] = score_threshold
+        yolo_cfg['iou'] = nms_threshold
+        return predictor_yolo, cfg, yolo_cfg
+    return None
+
+
+def main(args):
+
+    # make sure INFO (or DEBUG) logs go to your console
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("detectron2.engine.defaults").setLevel(logging.INFO)
+
+    # 1. Define your “real” COCO IDs and your class names:
+    COCO_IDS = [0, 1, 2, 3, 5, 7, 9]
+    CLASS_NAMES = ["person", "bicycle", "car", "motorbike", "bus", "truck", "traffic light"]
+
+    # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
+
+    min_size = args.short_edge_size
+    max_size = 10000
+    score_threshold = 0.6
+    nms_threshold=args.nms_threshold
+
+    model_typle = args.model_type
+
+    model, cfg, yolo_cfg = load_model(model_typle, min_size, max_size, score_threshold, nms_threshold)
+
 
     # 2. Register your dataset, telling Detectron2 how to map
     #    your JSON’s category_id (which you’ve numbered 1–7) back
@@ -87,68 +112,32 @@ def main():
                                                    'traffic light']
     # Now the metadata has been populated:
     print(MetadataCatalog.get("my_val").thing_classes)
-    # → ['person', 'bicycle', 'car', 'motorbike', 'bus', 'truck', 'traffic light']
-    get = MetadataCatalog.get("my_val")
 
-
-
-        # only work on apple m1 mac
-        # cfg.MODEL.DEVICE = 'mps'
-
-    # create a predictor instance with the config above
-    predictor_faster_RCNN = DefaultPredictor(cfg)
 
     # build the sampler
-    test_set_sampler = InferenceSampler(10)
+    test_set_sampler = InferenceSampler(400)
 
     # Build a DataLoader for the "my_val" split
     val_loader = build_detection_test_loader(cfg, "my_val", sampler=test_set_sampler)
 
-    # for batch in val_loader:
-    #     print("...")
-
+    # ---------- visualise the test dataset with bbox ----------
     # 1) load the raw dicts
     dataset_dicts = DatasetCatalog.get("my_val")
-
     # 2) sample 3 at random
     # samples = random.sample(dataset_dicts, 3)
-    samples = dataset_dicts[:1]
-
+    # samples = dataset_dicts[-20:]
     # 3) visualize each
-    metadata = MetadataCatalog.get("my_val")
-    for d in samples:
-        img = cv2.imread(d["file_name"])  # BGR uint8
-        vis = Visualizer(img[:, :, ::-1], metadata=metadata, scale=1.0)
-        out = vis.draw_dataset_dict(d)  # draws d["annotations"]
-        out_rgb = out.get_image()  # RGB H×W×3
-
-        plt.figure(figsize=(20, 12))
-        plt.imshow(out_rgb)
-        plt.axis("off")
-        plt.show()
-    # 4) subclass COCOEvaluator to filter & remap on the fly
-
-    # class FilterAndRemapCOCOEvaluator(COCOEvaluator):
-    #     def process(self, inputs, outputs):
-    #         # inputs: list of dicts, outputs: list of dicts with "instances"
-    #         new_inputs, new_outputs = [], []
-    #         for inp, out in zip(inputs, outputs):
-    #             inst = out["instances"].to("cpu")
-    #             # keep only predictions whose class is in our COCO_IDS
-    #             keep_mask = [(c in COCO_IDS) for c in inst.pred_classes.tolist()]
-    #             if not any(keep_mask):
-    #                 # no valid preds for this image → skip
-    #                 continue
-    #             inst = inst[keep_mask]
-    #             # remap class indices: e.g. if pred_classes=[0,5,9], new → [0,4,6]
-    #             remapped = [COCO2CONT[int(c)] for c in inst.pred_classes.tolist()]
-    #             inst.pred_classes = torch.tensor(remapped)
-    #             out["instances"] = inst
-    #             new_inputs.append(inp)
-    #             new_outputs.append(out)
+    # metadata = MetadataCatalog.get("my_val")
+    # for d in samples:
+    #     img = cv2.imread(d["file_name"])  # BGR uint8
+    #     vis = Visualizer(img[:, :, ::-1], metadata=metadata, scale=1.0)
+    #     out = vis.draw_dataset_dict(d)  # draws d["annotations"]
+    #     out_rgb = out.get_image()  # RGB H×W×3
     #
-    #         # now call the parent with filtered/remapped lists
-    #         super().process(new_inputs, new_outputs)
+    #     plt.figure(figsize=(20, 12))
+    #     plt.imshow(out_rgb)
+    #     plt.axis("off")
+    #     plt.show()
 
     # You can specify which tasks to compute; by default it infers from dataset (bbox, segm, keypoints…)
     evaluator = COCOEvaluator(
@@ -159,16 +148,59 @@ def main():
     )
     # AssertionError: A prediction has class=11, but the dataset only has 7 classes and predicted class id should be in [0, 6].
     # We need to filter out unnecessary classes
+
     metrics = inference_on_dataset(
-        predictor_faster_RCNN.model,  # or Trainer.model
+        model,  # or Trainer.model
         val_loader,
         evaluator,
         COCO_IDS,
-        False,
-        cfg
+        args.pano,
+        cfg,
+        model_typle,
+        yolo_cfg,
+        args.sub_image_size
     )
     print(metrics)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(
+        description="Your program description here"
+    )
+
+    parser.add_argument(
+        '-p', '--pano',
+        action='store_true',
+        help='Use our proposed method if set true'
+    )
+    parser.add_argument(
+        '--sub_image_size',
+        type=int,
+        default=640,
+        help='the size of sub image'
+    )
+
+    parser.add_argument(
+        '-m', '--model_type',
+        type=str,
+        default="Faster RCNN",
+        help='the object detection model'
+    )
+
+    parser.add_argument(
+        '-s', '--short_edge_size',
+        type=int,
+        default=0,
+        help='the length of short edge, default to 0 which means use the original image size'
+    )
+
+    parser.add_argument(
+        '-n', '--nms_threshold',
+        type=float,
+        default=0.5,
+        help='threshold for non-maxima suppression'
+    )
+
+    parsed_args = parser.parse_args()
+
+    main(parsed_args)
