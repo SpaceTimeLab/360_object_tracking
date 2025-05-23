@@ -1309,6 +1309,7 @@ def predict_one_frame(
         use_mymodel=True,
         model="Faster RCNN",
         split_image2=True,
+        yolo_cfg=None
 ):
     # for checking the processing speed, record the current time first
     time1 = time.time()
@@ -1529,7 +1530,7 @@ def predict_one_frame(
             im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
             # get the outputs
             # results = predictor(im, size=sub_image_width)  # yolov5
-            results = predictor(im, imgsz=sub_image_width)  # yolov8 NMS included
+            results = predictor(im, verbose=False, **yolo_cfg)  # yolov8 NMS included
             # bboxes_all = (
             #         results.xyxyn[0].cpu().numpy()[:, 0:4]
             #         * [video_width, video_height, video_width, video_height]

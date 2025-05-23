@@ -16,6 +16,10 @@ from detectron2.evaluation import COCOEvaluator
 from detectron2.evaluation import inference_on_dataset
 import argparse
 from ultralytics import YOLO
+from tqdm import tqdm
+import json
+from panoramic_detection import improved_OD
+
 
 def load_model(model_type, min_size, max_size, score_threshold, nms_threshold):
     # first get the default config
@@ -44,7 +48,7 @@ def load_model(model_type, min_size, max_size, score_threshold, nms_threshold):
         cfg.MODEL.DEVICE = "cpu"
 
     # create a predictor instance with the config above
-    predictor_faster_rcnn = DefaultPredictor(cfg).model
+    predictor_faster_rcnn = DefaultPredictor(cfg)
     if model_type == "Faster RCNN":
         return predictor_faster_rcnn, cfg, None
     elif model_type == "YOLO":
@@ -70,15 +74,18 @@ def main(args):
     CLASS_NAMES = ["person", "bicycle", "car", "motorbike", "bus", "truck", "traffic light"]
 
     # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
+    FOV = 120
+    THETAs = [0, 90, 180, 270]
+    PHIs = [-10, -10, -10, -10]
 
     min_size = args.short_edge_size
     max_size = 10000
     score_threshold = 0.6
-    nms_threshold=args.nms_threshold
+    nms_threshold = args.nms_threshold
 
-    model_typle = args.model_type
+    model_type = args.model_type
 
-    model, cfg, yolo_cfg = load_model(model_typle, min_size, max_size, score_threshold, nms_threshold)
+    model, cfg, yolo_cfg = load_model(model_type, min_size, max_size, score_threshold, nms_threshold)
 
 
     # 2. Register your dataset, telling Detectron2 how to map
@@ -115,7 +122,7 @@ def main(args):
 
 
     # build the sampler
-    test_set_sampler = InferenceSampler(400)
+    test_set_sampler = InferenceSampler(10)
 
     # Build a DataLoader for the "my_val" split
     val_loader = build_detection_test_loader(cfg, "my_val", sampler=test_set_sampler)
@@ -139,28 +146,74 @@ def main(args):
     #     plt.axis("off")
     #     plt.show()
 
-    # You can specify which tasks to compute; by default it infers from dataset (bbox, segm, keypoints…)
-    evaluator = COCOEvaluator(
-        dataset_name="my_val",  # the name you registered
-        tasks=("bbox",),  # e.g., "bbox", "segm", or ("bbox", "segm")
-        distributed=False,  # set True if using multi-GPU
-        output_dir="./output"  # where to dump JSON results & summaries
-    )
-    # AssertionError: A prediction has class=11, but the dataset only has 7 classes and predicted class id should be in [0, 6].
-    # We need to filter out unnecessary classes
+    results = []
 
-    metrics = inference_on_dataset(
-        model,  # or Trainer.model
-        val_loader,
-        evaluator,
-        COCO_IDS,
-        args.pano,
-        cfg,
-        model_typle,
-        yolo_cfg,
-        args.sub_image_size
-    )
-    print(metrics)
+    for batch in tqdm(val_loader):
+        image = batch[0]["image"].permute(1, 2, 0).to(cfg.MODEL.DEVICE).numpy()  # (C, H, W)
+        height, width = batch[0]["height"], batch[0]["width"]
+        image_id = batch[0]["image_id"]
+
+        # Your model’s output
+        with torch.no_grad():
+            bboxes, classes, scores = improved_OD.predict_one_frame(
+                FOV,
+                THETAs,
+                PHIs,
+                image,
+                model,
+                width,
+                height,
+                args.sub_image_size,
+                COCO_IDS,
+                False,
+                args.pano,
+                model_type,
+                True,
+                yolo_cfg
+            )
+
+        # Parse the output: assuming your model returns boxes, labels, scores
+        # boxes = outputs["boxes"].cpu().numpy()  # [N, 4]
+        # scores = outputs["scores"].cpu().numpy()  # [N]
+        # labels = outputs["labels"].cpu().numpy()  # [N]
+
+        for box, score, one_class in zip(bboxes, scores, classes):
+            x1, y1, x2, y2 = box
+            result = {
+                "image_id": int(image_id),
+                "category_id": int(one_class),
+                "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
+                "score": float(score)
+            }
+            results.append(result)
+
+    # Save predictions to JSON
+    with open("predictions.json", "w") as f:
+        json.dump(results, f)
+
+    # TODO: replace this so that I don't need to change the detectron2 source code
+    # You can specify which tasks to compute; by default it infers from dataset (bbox, segm, keypoints…)
+    # evaluator = COCOEvaluator(
+    #     dataset_name="my_val",  # the name you registered
+    #     tasks=("bbox",),  # e.g., "bbox", "segm", or ("bbox", "segm")
+    #     distributed=False,  # set True if using multi-GPU
+    #     output_dir="./output"  # where to dump JSON results & summaries
+    # )
+    # # AssertionError: A prediction has class=11, but the dataset only has 7 classes and predicted class id should be in [0, 6].
+    # # We need to filter out unnecessary classes
+    #
+    # metrics = inference_on_dataset(
+    #     model,  # or Trainer.model
+    #     val_loader,
+    #     evaluator,
+    #     COCO_IDS,
+    #     args.pano,
+    #     cfg,
+    #     model_type,
+    #     yolo_cfg,
+    #     args.sub_image_size
+    # )
+    # print(metrics)
 
 
 if __name__ == '__main__':
