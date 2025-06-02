@@ -8,6 +8,7 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 import torch
 from detectron2.data import DatasetCatalog
+from detectron2.structures import Instances, Boxes
 from detectron2.utils.visualizer import Visualizer
 import matplotlib.pyplot as plt
 import random
@@ -19,7 +20,9 @@ from ultralytics import YOLO
 from tqdm import tqdm
 import json
 from panoramic_detection import improved_OD
-
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+import numpy as np
 
 def load_model(model_type, min_size, max_size, score_threshold, nms_threshold):
     # first get the default config
@@ -121,15 +124,15 @@ def main(args):
     print(MetadataCatalog.get("my_val").thing_classes)
 
 
-    # build the sampler
-    test_set_sampler = InferenceSampler(10)
+    # build the sampler, make it 400 as the full set since the last 20 samples are not correctly labeled
+    test_set_sampler = InferenceSampler(400)
 
     # Build a DataLoader for the "my_val" split
     val_loader = build_detection_test_loader(cfg, "my_val", sampler=test_set_sampler)
 
     # ---------- visualise the test dataset with bbox ----------
     # 1) load the raw dicts
-    dataset_dicts = DatasetCatalog.get("my_val")
+    # dataset_dicts = DatasetCatalog.get("my_val")
     # 2) sample 3 at random
     # samples = random.sample(dataset_dicts, 3)
     # samples = dataset_dicts[-20:]
@@ -150,7 +153,7 @@ def main(args):
 
     for batch in tqdm(val_loader):
         image = batch[0]["image"].permute(1, 2, 0).to(cfg.MODEL.DEVICE).numpy()  # (C, H, W)
-        height, width = batch[0]["height"], batch[0]["width"]
+        video_height, video_width = batch[0]["height"], batch[0]["width"]
         image_id = batch[0]["image_id"]
 
         # Your model’s output
@@ -161,27 +164,56 @@ def main(args):
                 PHIs,
                 image,
                 model,
-                width,
-                height,
+                video_width,
+                video_height,
                 args.sub_image_size,
                 COCO_IDS,
-                False,
+                True,
                 args.pano,
                 model_type,
                 True,
                 yolo_cfg
             )
+        bboxes = np.array(bboxes)
+        bboxes = bboxes.astype(np.float64)
+        scale_x = video_width / batch[0]["image"].shape[2]
+        scale_y = video_height / batch[0]["image"].shape[1]
+        # scale: x0, y0, x1, y1
+        bboxes[:, [0, 2]] *= scale_x
+        bboxes[:, [1, 3]] *= scale_y
+        bboxes = bboxes.tolist()
+
+        # --------- visualisation ---------
+        # new_inst = Instances((video_height, video_width))
+        #
+        # new_inst.pred_boxes = Boxes(bboxes)
+        # new_inst.pred_classes = torch.tensor(classes)
+        # new_inst.scores = torch.tensor(scores)
+        # im = cv2.imread(batch[0]['file_name'])
+        #
+        # v1 = Visualizer(
+        #     im[:, :, ::-1],
+        #     MetadataCatalog.get("my_val"),
+        #     scale=1.0,
+        # )
+        # im2 = v1.draw_instance_predictions(new_inst)
+        #
+        # plt.figure(figsize=(20, 12))
+        # plt.imshow(im2.get_image())
+        # plt.axis("off")  # hide axes
+        # plt.show()
+        # --------- end of visualisation ---------
 
         # Parse the output: assuming your model returns boxes, labels, scores
         # boxes = outputs["boxes"].cpu().numpy()  # [N, 4]
         # scores = outputs["scores"].cpu().numpy()  # [N]
         # labels = outputs["labels"].cpu().numpy()  # [N]
 
-        for box, score, one_class in zip(bboxes, scores, classes):
-            x1, y1, x2, y2 = box
+        for bbox, score, one_class in zip(bboxes, scores, classes):
+            x1, y1, x2, y2 = bbox
             result = {
                 "image_id": int(image_id),
-                "category_id": int(one_class),
+                "category_id": int(one_class + 1),
                 "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
                 "score": float(score)
             }
@@ -190,6 +222,17 @@ def main(args):
     # Save predictions to JSON
     with open("predictions.json", "w") as f:
         json.dump(results, f)
+
+    coco_gt = COCO("/Users/supernova/360_object_tracking/video1/COCO/annotations/instances_default.json")
+    coco_dt = coco_gt.loadRes("predictions.json")
+
+    evaluator = COCOeval(coco_gt, coco_dt, iouType='bbox')
+    # our definition of small, medium and large.
+    evaluator.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 128 ** 2], [128 ** 2, 384 ** 2], [384 ** 2, 1e5 ** 2]]
+
+    evaluator.evaluate()
+    evaluator.accumulate()
+    evaluator.summarize()
 
     # TODO: replace this so that I don't need to change the detectron2 source code
     # You can specify which tasks to compute; by default it infers from dataset (bbox, segm, keypoints…)
