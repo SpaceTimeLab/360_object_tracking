@@ -2,3 +2,6 @@
 	path = detectron2
 	url = https://github.com/yitai-cheng/detectron2.git
 	branch = old-detectron2
+[submodule "strongsort"]
+	path = strongsort
+	url = https://github.com/dyhBUPT/StrongSORT.git

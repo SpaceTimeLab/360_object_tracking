@@ -15,6 +15,7 @@ import lib.Equirec2Perspec as E2P
 
 import time
 from detectron2.layers import batched_nms
+from detectron2.structures import Instances, Boxes
 
 
 # function used to load a YOLO or Faster RCNN model according to the users' demands
@@ -1305,12 +1306,16 @@ def predict_one_frame(
         video_height,
         sub_image_width,
         classes_to_detect=[0, 1, 2, 3, 5, 7, 9],
-        is_project_class=False,
+        is_project_class=True,
         use_mymodel=True,
         model="Faster RCNN",
         split_image2=True,
+        yolo_cfg=None
 ):
     # for checking the processing speed, record the current time first
+    if yolo_cfg is None:
+        yolo_cfg = dict()
+        yolo_cfg['imgsz'] = (sub_image_width, 2 * sub_image_width)
     time1 = time.time()
 
     # if the user chooses to use the improved object detection model
@@ -1352,11 +1357,11 @@ def predict_one_frame(
                 classes = outputs1["instances"].pred_classes.cpu().numpy()
                 scores = outputs1["instances"].scores.cpu().numpy()
 
-                # do NMS on the bboxes despite the category
-                # keep_boxes is a list which stores the index of the bboxes to keep after NMS
-                keep_boxes = torchvision.ops.nms(
-                    torch.tensor(bboxes), torch.tensor(scores), 0.45
-                )
+                # # do NMS on the bboxes despite the category
+                # # keep_boxes is a list which stores the index of the bboxes to keep after NMS
+                # keep_boxes = torchvision.ops.nms(
+                #     torch.tensor(bboxes), torch.tensor(scores), 0.45
+                # )
 
                 # for each bbox in the current sub image, reproject it to the original image
                 (
@@ -1366,11 +1371,12 @@ def predict_one_frame(
                     left_boundary_box,
                     right_boundary_box,
                 ) = reproject_bboxes(
-                    torch.tensor(bboxes)[keep_boxes],
+                    # torch.tensor(bboxes)[keep_boxes],
+                    torch.tensor(bboxes),
                     lon_maps[i],
                     lat_maps[i],
-                    torch.tensor(classes)[keep_boxes],
-                    torch.tensor(scores)[keep_boxes],
+                    torch.tensor(classes),
+                    torch.tensor(scores),
                     10,
                     i,
                     video_width,
@@ -1391,9 +1397,9 @@ def predict_one_frame(
                     ] = right_boundary_box + len(bboxes_all)
 
                 # add the bboxes after reprojection to the lists which contain bboxes from all the sub images
-                bboxes_all = bboxes_all + reprojected_bboxes
-                classes_all = classes_all + classes
-                scores_all = scores_all + scores
+                bboxes_all += reprojected_bboxes
+                classes_all += classes
+                scores_all += scores
 
         # if a YOLO model is being used
         elif model == "YOLO":
@@ -1404,7 +1410,8 @@ def predict_one_frame(
 
             # YOLO supports detecting several images at the same time, so input all the sub images at once to the predictor
             # results = predictor(subimgs, size=sub_image_width)  # includes NMS
-            results = predictor(subimgs, imgsz=sub_image_width)  # yolov8 NMS included
+            # TODO: imgsz=sub_image_width and **yolo_cfg have a parameter conflict
+            results = predictor(subimgs, imgsz=sub_image_width, verbose=False, **yolo_cfg)  # yolov8 NMS included
 
             # --------  if you want to save and check the detail of the results on each sub image, run the code below  ----------
             # results.save()
@@ -1483,7 +1490,7 @@ def predict_one_frame(
             torch.tensor(bboxes_all),
             torch.tensor(scores_all),
             torch.tensor(classes_all),
-            0.3,
+            0.5,
         )
 
         # only keep the instances of the classes we need (person, bike, car, motorbike, bus, truck, traffic light by default)
@@ -1495,7 +1502,7 @@ def predict_one_frame(
         )
 
         # if needed, project the class into [0,6] (to match with the annotations in our dataset)
-        if is_project_class == True:
+        if is_project_class:
             classes_all = project_class(classes_all)
 
     # if the user chooses to use the original object detection model
@@ -1507,21 +1514,7 @@ def predict_one_frame(
             bboxes_all = outputs1["instances"].pred_boxes.tensor.cpu().numpy()
             classes_all = outputs1["instances"].pred_classes.cpu().numpy()
             scores_all = outputs1["instances"].scores.cpu().numpy()
-            keep_boxes = torchvision.ops.nms(
-                torch.tensor(bboxes_all), torch.tensor(scores_all), 0.45
-            )
-            if len(keep_boxes) == 1:
-                bboxes_all = bboxes_all[keep_boxes: keep_boxes + 1, :]
-            else:
-                bboxes_all = bboxes_all[keep_boxes, :]
-            if len(keep_boxes) == 1:
-                classes_all = classes_all[keep_boxes: keep_boxes + 1]
-            else:
-                classes_all = classes_all[keep_boxes]
-            if len(keep_boxes) == 1:
-                scores_all = scores_all[keep_boxes: keep_boxes + 1]
-            else:
-                scores_all = scores_all[keep_boxes]
+
 
         # if a YOLO model is being used
         elif model == "YOLO":
@@ -1529,7 +1522,7 @@ def predict_one_frame(
             im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
             # get the outputs
             # results = predictor(im, size=sub_image_width)  # yolov5
-            results = predictor(im, imgsz=sub_image_width)  # yolov8 NMS included
+            results = predictor(im, verbose=False, **yolo_cfg)  # yolov8 NMS included
             # bboxes_all = (
             #         results.xyxyn[0].cpu().numpy()[:, 0:4]
             #         * [video_width, video_height, video_width, video_height]
@@ -1553,7 +1546,7 @@ def predict_one_frame(
         )
 
         # if needed, project the class into [0,6] (to match with the annotations in our dataset)
-        if is_project_class == True:
+        if is_project_class:
             classes_all = project_class(classes_all)
 
     # record the current time again and calculate the running time
