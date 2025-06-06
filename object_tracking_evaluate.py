@@ -5,6 +5,7 @@ import motmetrics as mm
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 from ultralytics import YOLO
 
 from deep_sort.deep_sort import DeepSort
@@ -12,48 +13,7 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from panoramic_detection import improved_OD as OD
-
-
-def load_model(model_type, min_size, max_size, score_threshold, nms_threshold):
-    # first get the default config
-    cfg = get_cfg()
-
-    # choose a model from detectron2's model zoo
-    cfg.merge_from_file(
-        model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")
-    )
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-        "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"
-    )
-
-    cfg.INPUT.MIN_SIZE_TEST = min_size  # set the size of the input images, if 0 then no resize
-    cfg.INPUT.MAX_SIZE_TEST = max_size
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = (
-        score_threshold  # set the threshold of the confidence score
-    )
-    # cfg.MODEL.ROI_HEADS.NUM_CLASSES = 7
-    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = nms_threshold  # set the NMS threshold
-
-    # set the device to use (GPU or CPU)
-    if torch.cuda.is_available():
-        cfg.MODEL.DEVICE = "cuda"
-    else:
-        cfg.MODEL.DEVICE = "cpu"
-
-    # create a predictor instance with the config above
-    predictor_faster_rcnn = DefaultPredictor(cfg)
-    if model_type == "Faster RCNN":
-        return predictor_faster_rcnn, cfg, None
-    elif model_type == "YOLO":
-        predictor_yolo = YOLO("yolo12n.pt")
-        yolo_cfg = dict()
-        # min_size == 0 means we don't do resizing on the input image
-        if min_size != 0:
-            yolo_cfg['imgsz'] = (min_size, 2 * min_size)
-        yolo_cfg['conf'] = score_threshold
-        yolo_cfg['iou'] = nms_threshold
-        return predictor_yolo, cfg, yolo_cfg
-    return None
+from panoramic_detection.improved_OD import load_model
 
 
 # function used to realize object tracking on a panoramic video
@@ -66,25 +26,14 @@ def Object_Tracking(
         FOV=120,
         THETAs=[0, 90, 180, 270],
         PHIs=[-10, -10, -10, -10],
-        sub_image_width=640,
+        # sub_image_width=640,
         model_type="YOLO",
         score_threshold=0.4,
         nms_threshold=0.45,
         use_mymodel=True,
-        min_size = 0,
+        min_size = 640, # min_size will be used as width for resizing
         max_size = 10000,
 ):
-    print("Loading Model...")
-
-    model, cfg, yolo_cfg = load_model(model_type, min_size, max_size, score_threshold, nms_threshold)
-
-    # # load the pretrained detection model
-    # model, cfg = OD.load_model(
-    #     model_type, sub_image_width, score_threshold, nms_threshold
-    # )
-
-    print("Model Loaded!")
-
     # read the input panoramic video (of equirectangular projection)
     video_capture = cv2.VideoCapture(input_video_path)
 
@@ -104,8 +53,14 @@ def Object_Tracking(
             + str(video_height)
             + " in height."
         )
+        video_frame_count = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    print("Loading Model...")
+    model, cfg, yolo_cfg = load_model(model_type, min_size, max_size, video_width / video_height, score_threshold, nms_threshold)
+    print("Model Loaded!")
 
+    # TODO: add this to function parameter
+    tracker_name = "deepsort"
     # create a deepsort instance with the pre-trained feature extraction model
     deepsort = DeepSort(
         "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
@@ -115,6 +70,8 @@ def Object_Tracking(
     num_of_frame = 1
 
     with open(MOT_text_path, "w") as f:
+        pbar = tqdm(total=video_frame_count, desc="Processing frames")
+
         # for each image frame in the video
         while video_capture.grab():
 
@@ -122,7 +79,7 @@ def Object_Tracking(
             _, im = video_capture.retrieve()
 
             # get the predictions on the current frame
-            # TODO: currently only works for YoLo detection
+            # TODO: currently only works for YOLO detection
             bboxes, classes_all, scores_all = OD.predict_one_frame(
                 FOV,
                 THETAs,
@@ -131,9 +88,8 @@ def Object_Tracking(
                 model,
                 video_width,
                 video_height,
-                sub_image_width,
                 classes_to_detect,
-                False,
+                True,
                 use_mymodel,
                 model_type,
                 not match_across_boundary,
@@ -146,46 +102,90 @@ def Object_Tracking(
             # convert the bboxes from [x,y,x,y] to [xc,yc,w,h]
             bboxes_all_xcycwh = OD.xyxy2xcycwh(bboxes)
 
-            # update deepsort and get the tracking results
-            track_outputs = deepsort.update(
-                np.array(bboxes_all_xcycwh),
-                np.array(classes_all),
-                np.array(scores_all),
-                im,
-                prevent_different_classes_match,
-                match_across_boundary,
-            )
+            if tracker_name == "deepsort":
 
-            # plot the results on the video and save them as MOT texts
-            if len(track_outputs) > 0:
-                bbox_xyxy = track_outputs[:, :4]
-                track_classes = track_outputs[:, 4]
-                track_scores = track_outputs[:, 5]
-                identities = track_outputs[:, -1]
+                # update deepsort and get the tracking results
+                track_outputs = deepsort.update(
+                    np.array(bboxes_all_xcycwh),
+                    np.array(classes_all),
+                    np.array(scores_all),
+                    im,
+                    prevent_different_classes_match,
+                    match_across_boundary,
+                )
 
-                for bb_xyxy, track_class, track_score, identity in zip(
-                        bbox_xyxy, track_classes, track_scores, identities
-                ):
-                    f.write(
-                        str(num_of_frame)
-                        + ","
-                        + str(int(identity))
-                        + ","
-                        + str(deepsort._xyxy_to_tlwh(bb_xyxy))
-                        .strip("(")
-                        .strip(")")
-                        .replace(" ", "")
-                        + ","
-                        + str(track_score)
-                        + ","
-                        + str(track_class)
-                        + ",-1,-1\n"
-                    )
+                # save results as MOT texts
+                if len(track_outputs) > 0:
+                    bbox_xyxy = track_outputs[:, :4]
+                    track_classes = track_outputs[:, 4]
+                    track_scores = track_outputs[:, 5]
+                    identities = track_outputs[:, -1]
+
+                    for bb_xyxy, track_class, track_score, identity in zip(
+                            bbox_xyxy, track_classes, track_scores, identities
+                    ):
+                        f.write(
+                            str(num_of_frame)
+                            + ","
+                            + str(int(identity))
+                            + ","
+                            + str(deepsort._xyxy_to_tlwh(bb_xyxy))
+                            .strip("(")
+                            .strip(")")
+                            .replace(" ", "")
+                            + ","
+                            + str(track_score)
+                            + ","
+                            + str(track_class + 1)
+                            + ",-1,-1\n"
+                        )
+            # elif tracker_name == "strongsort":
+            #     self.height, self.width = ori_img.shape[:2]
+            #     # generate detections
+            #     features = self._get_features(bbox_xywh, ori_img)
+            #     bbox_tlwh = self._xywh_to_tlwh(bbox_xywh)
+            #     detections = [
+            #         Detection(bbox_tlwh[i], conf, features[i])
+            #         for i, conf in enumerate(confidences)
+            #         if conf > self.min_confidence
+            #     ]
+            #
+            #     # Run non-maxima suppression.
+            #     boxes = np.array([d.tlwh for d in detections])
+            #     scores = np.array([d.confidence for d in detections])
+            #     indices = preprocessing.non_max_suppression(
+            #         boxes, nms_max_overlap, scores)
+            #     detections = [detections[i] for i in indices]
+            #
+            #     # Update tracker.
+            #     if opt.ECC:
+            #         tracker.camera_update(sequence_dir.split('/')[-1], frame_idx)
+            #
+            #     tracker.predict()
+            #     tracker.update(detections)
+            #
+            #     # Update visualization.
+            #     if display:
+            #         image = cv2.imread(
+            #             seq_info["image_filenames"][frame_idx], cv2.IMREAD_COLOR)
+            #         vis.set_image(image.copy())
+            #         vis.draw_detections(detections)
+            #         vis.draw_trackers(tracker.tracks)
+            #
+            #     # Store results.
+            #     for track in tracker.tracks:
+            #         if not track.is_confirmed() or track.time_since_update > 1:
+            #             continue
+            #         bbox = track.to_tlwh()
+            #         results.append([
+            #             frame_idx, track.track_id, bbox[0], bbox[1], bbox[2], bbox[3]])
 
             num_of_frame += 1
+            pbar.update(1)
 
     # release the input and output videos
     video_capture.release()
+    pbar.close()
 
     print("Output Finished!")
 
@@ -234,7 +234,7 @@ def boolean_string(s):
 def main(opt):
     Object_Tracking(
         opt.input_video_path,
-        opt.output_video_path,
+        # opt.output_video_path,
         opt.MOT_text_path,
         opt.prevent_different_classes_match,
         opt.match_across_boundary,
@@ -242,7 +242,7 @@ def main(opt):
         opt.FOV,
         opt.THETAs,
         opt.PHIs,
-        opt.sub_image_width,
+        # opt.sub_image_width,
         opt.model_type,
         opt.score_threshold,
         opt.nms_threshold,
@@ -266,8 +266,8 @@ if __name__ == "__main__":
     parser.add_argument("--FOV", type=int, default=120)
     parser.add_argument("--THETAs", nargs="+", type=int, default=[0, 90, 180, 270])
     parser.add_argument("--PHIs", nargs="+", type=int, default=[-10, -10, -10, -10])
-    parser.add_argument("--sub_image_width", type=int, default=640)
-    parser.add_argument("--short_edge_size", type=int, default=0)
+    # parser.add_argument("--sub_image_width", type=int, default=640)
+    parser.add_argument("--short_edge_size", type=int, default=640)
     parser.add_argument(
         "--model_type", type=str, choices=["YOLO", "Faster RCNN"], default="YOLO"
     )

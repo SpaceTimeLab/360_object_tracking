@@ -32,7 +32,7 @@ def draw_boxes(
     offset=(0, 0),
 ):
     # if close overtaking warning is on
-    if close_overtaking_warning == True:
+    if close_overtaking_warning:
 
         # draw a meter showing the direction of the cars which take over the cyclist
         white_area = np.zeros(img.shape, np.uint8)
@@ -92,7 +92,7 @@ def draw_boxes(
         color = compute_color_for_labels(id)
 
         # if the object is moving backwards/forwards, show it in the label
-        if backwards_tracks != None and id in backwards_tracks:
+        if backwards_tracks is not None and id in backwards_tracks:
             label = (
                 str(id)
                 + " "
@@ -103,7 +103,7 @@ def draw_boxes(
                 + " Backwards"
             )
 
-        elif forwards_tracks != None and id in forwards_tracks:
+        elif forwards_tracks is not None and id in forwards_tracks:
             label = (
                 str(id)
                 + " "
@@ -217,82 +217,9 @@ def classid2name(id):
         "bicycle",
         "car",
         "motorbike",
-        "aeroplane",
         "bus",
-        "train",
         "truck",
-        "boat",
         "traffic light",
-        "fire hydrant",
-        "stop sign",
-        "parking meter",
-        "bench",
-        "bird",
-        "cat",
-        "dog",
-        "horse",
-        "sheep",
-        "cow",
-        "elephant",
-        "bear",
-        "zebra",
-        "giraffe",
-        "backpack",
-        "umbrella",
-        "handbag",
-        "tie",
-        "suitcase",
-        "frisbee",
-        "skis",
-        "snowboard",
-        "sports ball",
-        "kite",
-        "baseball bat",
-        "baseball glove",
-        "skateboard",
-        "surfboard",
-        "tennis racket",
-        "bottle",
-        "wine glass",
-        "cup",
-        "fork",
-        "knife",
-        "spoon",
-        "bowl",
-        "banana",
-        "apple",
-        "sandwich",
-        "orange",
-        "broccoli",
-        "carrot",
-        "hot dog",
-        "pizza",
-        "donut",
-        "cake",
-        "chair",
-        "sofa",
-        "pottedplant",
-        "bed",
-        "diningtable",
-        "toilet",
-        "tvmonitor",
-        "laptop",
-        "mouse",
-        "remote",
-        "keyboard",
-        "cell phone",
-        "microwave",
-        "oven",
-        "toaster",
-        "sink",
-        "refrigerator",
-        "book",
-        "clock",
-        "vase",
-        "scissors",
-        "teddy bear",
-        "hair drier",
-        "toothbrush",
     ]
     return names[int(id)]
 
