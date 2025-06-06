@@ -131,12 +131,9 @@ def main(args):
     val_loader = build_detection_test_loader(cfg, "my_val", sampler=test_set_sampler)
 
     # ---------- visualise the test dataset with bbox ----------
-    # 1) load the raw dicts
     # dataset_dicts = DatasetCatalog.get("my_val")
-    # 2) sample 3 at random
     # samples = random.sample(dataset_dicts, 3)
-    # samples = dataset_dicts[-20:]
-    # 3) visualize each
+    # samples = dataset_dicts[:20]
     # metadata = MetadataCatalog.get("my_val")
     # for d in samples:
     #     img = cv2.imread(d["file_name"])  # BGR uint8
@@ -148,7 +145,6 @@ def main(args):
     #     plt.imshow(out_rgb)
     #     plt.axis("off")
     #     plt.show()
-
     results = []
 
     for batch in tqdm(val_loader):
