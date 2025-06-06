@@ -19,7 +19,7 @@ from detectron2.structures import Instances, Boxes
 
 
 # function used to load a YOLO or Faster RCNN model according to the users' demands
-def load_model(model_type, input_size=1280, score_threshold=0.4, nms_threshold=0.45):
+def load_model(model_type, min_size, max_size, width_height_ratio, score_threshold, nms_threshold):
     # first get the default config
     cfg = get_cfg()
 
@@ -31,10 +31,12 @@ def load_model(model_type, input_size=1280, score_threshold=0.4, nms_threshold=0
         "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"
     )
 
-    cfg.INPUT.MAX_SIZE_TEST = input_size  # set the size of the input images
+    cfg.INPUT.MIN_SIZE_TEST = min_size  # set the size of the input images, if 0 then no resize
+    cfg.INPUT.MAX_SIZE_TEST = max_size
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = (
         score_threshold  # set the threshold of the confidence score
     )
+    # cfg.MODEL.ROI_HEADS.NUM_CLASSES = 7
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = nms_threshold  # set the NMS threshold
 
     # set the device to use (GPU or CPU)
@@ -43,23 +45,20 @@ def load_model(model_type, input_size=1280, score_threshold=0.4, nms_threshold=0
     else:
         cfg.MODEL.DEVICE = "cpu"
 
-        # only work on apple m1 mac
-        # cfg.MODEL.DEVICE = 'mps'
-
     # create a predictor instance with the config above
-    predictor_faster_RCNN = DefaultPredictor(cfg)
-
-    # choose a model from YOLO v5 family
-    # predictor_YOLO = torch.hub.load("ultralytics/yolov5", "yolov5m6")
-    predictor_YOLO = YOLO("yolo12n.pt")
-    predictor_YOLO.conf = score_threshold  # set the threshold of the confidence score
-    predictor_YOLO.iou = nms_threshold  # set the NMS threshold
-    predictor_YOLO.agnostic = True  # NMS class-agnostic (i.e., only the bboxes with the same category can be eliminated after NMS)
-
+    predictor_faster_rcnn = DefaultPredictor(cfg)
     if model_type == "Faster RCNN":
-        return predictor_faster_RCNN, cfg
-    else:
-        return predictor_YOLO, cfg
+        return predictor_faster_rcnn, cfg, None
+    elif model_type == "YOLO":
+        predictor_yolo = YOLO("yolo12n.pt")
+        yolo_cfg = dict()
+        # min_size == 0 means we don't do resizing on the input image
+        # our method will only use the min_size for perspective projected sub-images.
+        yolo_cfg['imgsz'] = (min_size, width_height_ratio * min_size)
+        yolo_cfg['conf'] = score_threshold
+        yolo_cfg['iou'] = nms_threshold
+        return predictor_yolo, cfg, yolo_cfg
+    return None
 
 
 # function used to split the equirectangular image into several sub images which are in perspective projection
@@ -1304,19 +1303,16 @@ def predict_one_frame(
         predictor,
         video_width,
         video_height,
-        sub_image_width,
         classes_to_detect=[0, 1, 2, 3, 5, 7, 9],
         is_project_class=True,
         use_mymodel=True,
-        model="Faster RCNN",
+        model="YOLO",
         split_image2=True,
         yolo_cfg=None
 ):
     # for checking the processing speed, record the current time first
-    if yolo_cfg is None:
-        yolo_cfg = dict()
-        yolo_cfg['imgsz'] = (sub_image_width, 2 * sub_image_width)
     time1 = time.time()
+    sub_image_width = yolo_cfg['imgsz'][0]
 
     # if the user chooses to use the improved object detection model
     if use_mymodel:
@@ -1411,7 +1407,7 @@ def predict_one_frame(
             # YOLO supports detecting several images at the same time, so input all the sub images at once to the predictor
             # results = predictor(subimgs, size=sub_image_width)  # includes NMS
             # TODO: imgsz=sub_image_width and **yolo_cfg have a parameter conflict
-            results = predictor(subimgs, imgsz=sub_image_width, verbose=False, **yolo_cfg)  # yolov8 NMS included
+            results = predictor(subimgs, imgsz=sub_image_width, conf=yolo_cfg['conf'], iou=yolo_cfg['iou'], verbose=False)  # yolov8 NMS included
 
             # --------  if you want to save and check the detail of the results on each sub image, run the code below  ----------
             # results.save()
