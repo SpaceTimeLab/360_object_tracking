@@ -113,8 +113,8 @@ def main(args):
 
     register_my_dataset(
         "my_val",
-        "/Users/supernova/360_object_tracking/video1/COCO/annotations/instances_default.json",
-        "/Users/supernova/360_object_tracking/video1/COCO/val"
+        "/Users/supernova/360_object_tracking/videos/video1/COCO/annotations/instances_default.json",
+        "/Users/supernova/360_object_tracking/videos/video1/COCO/val"
     )
 
     # Tell Detectron2 how many classes and what their names are:
@@ -162,7 +162,7 @@ def main(args):
                 model,
                 video_width,
                 video_height,
-                args.sub_image_size,
+                # args.sub_image_size,
                 COCO_IDS,
                 True,
                 args.pano,
@@ -219,7 +219,7 @@ def main(args):
     with open("predictions.json", "w") as f:
         json.dump(results, f)
 
-    coco_gt = COCO("/Users/supernova/360_object_tracking/video1/COCO/annotations/instances_default.json")
+    coco_gt = COCO("/Users/supernova/360_object_tracking/videos/video1/COCO/annotations/instances_default.json")
     coco_dt = coco_gt.loadRes("predictions.json")
 
     evaluator = COCOeval(coco_gt, coco_dt, iouType='bbox')
@@ -229,30 +229,6 @@ def main(args):
     evaluator.evaluate()
     evaluator.accumulate()
     evaluator.summarize()
-
-    # TODO: replace this so that I don't need to change the detectron2 source code
-    # You can specify which tasks to compute; by default it infers from dataset (bbox, segm, keypoints…)
-    # evaluator = COCOEvaluator(
-    #     dataset_name="my_val",  # the name you registered
-    #     tasks=("bbox",),  # e.g., "bbox", "segm", or ("bbox", "segm")
-    #     distributed=False,  # set True if using multi-GPU
-    #     output_dir="./output"  # where to dump JSON results & summaries
-    # )
-    # # AssertionError: A prediction has class=11, but the dataset only has 7 classes and predicted class id should be in [0, 6].
-    # # We need to filter out unnecessary classes
-    #
-    # metrics = inference_on_dataset(
-    #     model,  # or Trainer.model
-    #     val_loader,
-    #     evaluator,
-    #     COCO_IDS,
-    #     args.pano,
-    #     cfg,
-    #     model_type,
-    #     yolo_cfg,
-    #     args.sub_image_size
-    # )
-    # print(metrics)
 
 
 if __name__ == '__main__':

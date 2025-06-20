@@ -61,7 +61,7 @@ class DeepSort(object):
             if conf > self.min_confidence
         ]
 
-        # run on non-maximum supression
+        # run on non-maximum suppression
         boxes = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
         # classes = np.array([d.confidence for d in detections])
@@ -87,7 +87,7 @@ class DeepSort(object):
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue
             box = track.to_tlwh()
-            if match_across_boundary==True:
+            if match_across_boundary:
                 x1, y1, x2, y2 = self._tlwh_to_xyxy1(box)
             else:
                 x1, y1, x2, y2 = self._tlwh_to_xyxy(box)
