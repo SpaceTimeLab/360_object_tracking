@@ -104,7 +104,7 @@ def reproject_bboxes(
         input_video_height,
         num_of_subimages,
         threshold_of_boundary,
-        is_split_image2=True,
+        is_split_image2=False,
 ):
     # list for storing the new bboxes,classes and scores after reprojection
     new_bboxes = []
@@ -235,8 +235,8 @@ def reproject_bboxes(
                 xmin_left = min(xs_left)
                 xmax_right = max(xs_right)
 
-                # if it is needed to split the bbox into two parts, create two bboxes with the MBRs of the left and right part seperately
-                if is_split_image2 == True:
+                # if it is needed to split the bbox into two parts, create two bboxes with the MBRs of the left and right part separately
+                if is_split_image2:
                     new_bboxes.append([xmin_left, ymin, input_video_width, ymax])
                     new_bboxes.append([0, ymin, xmax_right, ymax])
                     new_classes.append(int(class1))
@@ -1307,7 +1307,7 @@ def predict_one_frame(
         is_project_class=True,
         use_mymodel=True,
         model="YOLO",
-        split_image2=True,
+        split_image2=False,
         yolo_cfg=None
 ):
     # for checking the processing speed, record the current time first
@@ -1482,20 +1482,21 @@ def predict_one_frame(
         )
 
         # do NMS on the output bboxes again to get the index of the boxes which should be kept
-        keep = batched_nms(
-            torch.tensor(bboxes_all),
-            torch.tensor(scores_all),
-            torch.tensor(classes_all),
-            0.5,
-        )
+        if bboxes_all: # if the list is not empty, i.e. there are bboxes detected
+            keep = batched_nms(
+                torch.tensor(bboxes_all),
+                torch.tensor(scores_all),
+                torch.tensor(classes_all),
+                0.5,
+            )
 
-        # only keep the instances of the classes we need (person, bike, car, motorbike, bus, truck, traffic light by default)
-        bboxes_all, classes_all, scores_all = filter_classes(
-            torch.tensor(bboxes_all)[keep],
-            torch.tensor(classes_all)[keep],
-            torch.tensor(scores_all)[keep],
-            classes_to_detect,
-        )
+            # only keep the instances of the classes we need (person, bike, car, motorbike, bus, truck, traffic light by default)
+            bboxes_all, classes_all, scores_all = filter_classes(
+                torch.tensor(bboxes_all)[keep],
+                torch.tensor(classes_all)[keep],
+                torch.tensor(scores_all)[keep],
+                classes_to_detect,
+            )
 
         # if needed, project the class into [0,6] (to match with the annotations in our dataset)
         if is_project_class:

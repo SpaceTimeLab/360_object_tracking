@@ -30,9 +30,8 @@ def count_subfolders(root_path):
 # function used to realize object tracking on a panoramic video
 def Object_Tracking(
         input_video_dir,
-        MOT_text_path,
-        prevent_different_classes_match=True,
-        match_across_boundary=True,
+        prevent_different_classes_match=False,
+        match_across_boundary=False,
         classes_to_detect=[0, 1, 2, 3, 5, 7, 9],
         FOV=120,
         THETAs=[0, 90, 180, 270],
@@ -55,7 +54,7 @@ def Object_Tracking(
         tracker = StrongSort(
             "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
         )
-
+    print(f"{tracker_name} Tracker will be used for tracking!")
     num_of_videos = count_subfolders(input_video_dir)
     print(f"Number of videos: {num_of_videos}")
     # Create accumulator
@@ -199,7 +198,16 @@ def Object_Tracking(
         generate_overall=True
     )
     # Print results
-    print(mm.io.render_summary(summary, formatters=mh.formatters, namemap=mm.io.motchallenge_metric_names))
+    # Generate the summary string
+    summary_str = mm.io.render_summary(summary, formatters=mh.formatters, namemap=mm.io.motchallenge_metric_names)
+    print(summary_str)
+
+    # Save the string to a text file
+    with open("tracking-eval-result-pano.txt", "w") as f:
+        f.write(summary_str)
+
+    print("Summary saved")
+
 
 # TODO: maybe wrong. ...The MOT file doesn't follow the standard bbox format, so we need to convert it for evaluation metrics
 def read_mot_file(filepath):
@@ -219,7 +227,6 @@ def boolean_string(s):
 def main(opt):
     Object_Tracking(
         opt.input_video_path,
-        opt.MOT_text_path,
         opt.prevent_different_classes_match,
         opt.match_across_boundary,
         opt.classes_to_detect,
@@ -238,12 +245,14 @@ def main(opt):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Your program description here")
     parser.add_argument("--input_video_path", required=True, type=str)
-    parser.add_argument("--output_video_path", required=True, type=str)
-    parser.add_argument("--MOT_text_path", required=True, type=str)
-    parser.add_argument(
-        "--prevent_different_classes_match", default=True, type=boolean_string
+    parser.add_argument("-c",
+        "--prevent_different_classes_match", action="store_true",
+        help="Prevents matches between objects of different classes (default: False)"
     )
-    parser.add_argument("--match_across_boundary", default=True, type=boolean_string)
+    parser.add_argument("-b",
+        "--match_across_boundary", action="store_true",
+        help="Allows matching across boundary if set, otherwise disabled (default: False)"
+    )
     parser.add_argument(
         "--classes_to_detect", nargs="+", type=int, default=[0, 1, 2, 3, 5, 7, 9]
     )
