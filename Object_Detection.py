@@ -7,6 +7,7 @@ from detectron2.data import MetadataCatalog
 from detectron2.structures.instances import Instances
 from detectron2.structures.boxes import Boxes
 from panoramic_detection import improved_OD as OD
+from panoramic_detection.improved_OD import load_model
 
 # function used to realize object detection on a panoramic video
 def Object_Detection(
@@ -16,19 +17,13 @@ def Object_Detection(
     FOV=120,
     THETAs=[0, 90, 180, 270],
     PHIs=[-10, -10, -10, -10],
-    sub_image_width=640,
     model_type="YOLO",
     score_threshold=0.4,
     nms_threshold=0.45,
     use_mymodel=True,
+    min_size=640,  # min_size will be used as width for resizing
+    max_size=10000,
 ):
-
-    print("Loading Model...")
-    # load the pretrained detection model
-    model, cfg = OD.load_model(
-        model_type, sub_image_width, score_threshold, nms_threshold
-    )
-    print("Model Loaded!")
 
     # read the input panoramic video (of equirectangular projection)
     video_capture = cv2.VideoCapture(input_video_path)
@@ -57,6 +52,14 @@ def Object_Detection(
         + str(video_height)
         + " in height."
     )
+    print(f"resizing the width to {min_size}")
+
+    print("Loading Model...")
+    # load the pretrained detection model
+    model, cfg, yolo_cfg = load_model(model_type, min_size, max_size, video_width / video_height, score_threshold, nms_threshold)
+
+    print("Model Loaded!")
+
 
     # the number of current frame
     num_of_frame = 1
@@ -78,12 +81,12 @@ def Object_Detection(
             model,
             video_width,
             video_height,
-            sub_image_width,
             classes_to_detect,
             False,
             use_mymodel,
             model_type,
-            True,
+            False, # False means do not split image2
+            yolo_cfg
         )
 
         # create an instance of detectron2 so that the output can be visualized
@@ -129,9 +132,15 @@ def parse_opt():
     parser.add_argument(
         "--model_type", type=str, choices=["YOLO", "Faster RCNN"], default="YOLO"
     )
-    parser.add_argument("--score_threshold", type=float, default=0.4)
-    parser.add_argument("--nms_threshold", type=float, default=0.45)
+    parser.add_argument("--score_threshold", type=float, default=0.5)
+    parser.add_argument("--nms_threshold", type=float, default=0.5)
     parser.add_argument("--use_mymodel", default=True, type=boolean_string)
+    parser.add_argument(
+        '-s', '--short_edge_size',
+        type=int,
+        default=0,
+        help='the length of short edge, default to 0 which means use the original image size'
+    )
     opt = parser.parse_args()
     # print(opt)
     return opt
@@ -151,11 +160,11 @@ def main(opt):
         opt.FOV,
         opt.THETAs,
         opt.PHIs,
-        opt.sub_image_width,
         opt.model_type,
         opt.score_threshold,
         opt.nms_threshold,
         opt.use_mymodel,
+        opt.short_edge_size
     )
 
 

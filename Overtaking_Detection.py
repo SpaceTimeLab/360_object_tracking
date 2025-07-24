@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from panoramic_detection import improved_OD as OD
-from deep_sort.deep_sort import DeepSort
+from strong_sort_new import StrongSort
 from panoramic_detection.draw_output import draw_boxes
 
 # a function used to realize overtaking behaviour detection on a panoramic video
@@ -23,18 +23,10 @@ def Overtaking_Detection(
     PHIs=[-10, -10, -10, -10],
     sub_image_width=640,
     model_type="YOLO",
-    score_threshold=0.4,
-    nms_threshold=0.45,
+    score_threshold=0.5,
+    nms_threshold=0.5,
     use_mymodel=True,
 ):
-
-    print("Loading Model...")
-    # load the pretrained detection model
-    model, cfg = OD.load_model(
-        model_type, sub_image_width, score_threshold, nms_threshold
-    )
-    print("Model Loaded!")
-
     # read the input panoramic video (of equirectangular projection)
     video_capture = cv2.VideoCapture(input_video_path)
 
@@ -53,17 +45,25 @@ def Overtaking_Detection(
             output_video_path, fourcc, video_fps, (video_width, video_height)
         )
 
-    # output the video info
-    print(
-        "The input video is "
-        + str(video_width)
-        + " in width and "
-        + str(video_height)
-        + " in height."
-    )
+        # output the video info
+        print(
+            "The input video is "
+            + str(video_width)
+            + " in width and "
+            + str(video_height)
+            + " in height."
+        )
+
+    print("Loading Model...")
+    # load the pretrained detection model
+
+    model, cfg, yolo_cfg = OD.load_model(model_type, sub_image_width, 10000, video_width / video_height, score_threshold, nms_threshold)
+
+    print("Model Loaded!")
+
 
     # create a deepsort instance with the pre-trained feature extraction model
-    deepsort = DeepSort(
+    deepsort = StrongSort(
         "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
     )
 
@@ -98,12 +98,13 @@ def Overtaking_Detection(
                 model,
                 video_width,
                 video_height,
-                sub_image_width,
+                # sub_image_width,
                 classes_to_detect,
-                False,
+                True,
                 use_mymodel,
                 model_type,
                 not match_across_boundary,
+                yolo_cfg
             )
 
             # convert the bboxes from [x,y,x,y] to [xc,yc,w,h]
@@ -357,7 +358,7 @@ def parse_opt():
     parser.add_argument("--input_video_path", required=True, type=str)
     parser.add_argument("--output_video_path", required=True, type=str)
     parser.add_argument(
-        "--mode", type=str, choices=["Confirmed", "Unconfirmed"], default="Confirmed"
+        "--mode", type=str, choices=["Confirmed", "Unconfirmed"], default="Unconfirmed"
     )
     parser.add_argument(
         "--prevent_different_classes_match", default=True, type=boolean_string
@@ -379,12 +380,12 @@ def parse_opt():
     parser.add_argument("--FOV", type=int, default=120)
     parser.add_argument("--THETAs", nargs="+", type=int, default=[0, 90, 180, 270])
     parser.add_argument("--PHIs", nargs="+", type=int, default=[-10, -10, -10, -10])
-    parser.add_argument("--sub_image_width", type=int, default=640)
+    parser.add_argument("--sub_image_width", type=int, default=1280)
     parser.add_argument(
         "--model_type", type=str, choices=["YOLO", "Faster RCNN"], default="YOLO"
     )
-    parser.add_argument("--score_threshold", type=float, default=0.4)
-    parser.add_argument("--nms_threshold", type=float, default=0.45)
+    parser.add_argument("--score_threshold", type=float, default=0.5)
+    parser.add_argument("--nms_threshold", type=float, default=0.5)
     parser.add_argument("--use_mymodel", default=True, type=boolean_string)
     opt = parser.parse_args()
     print(opt)
