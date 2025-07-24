@@ -10,12 +10,11 @@ from tqdm import tqdm
 from ultralytics import YOLO
 
 from deep_sort.deep_sort import DeepSort
-from detectron2 import model_zoo
-from detectron2.config import get_cfg
-from detectron2.engine import DefaultPredictor
 from panoramic_detection import improved_OD as OD
 from panoramic_detection.improved_OD import load_model
 from strong_sort_new import StrongSort
+from utils.seed_helper import set_seed
+
 
 def count_subfolders(root_path):
     """
@@ -45,16 +44,15 @@ def Object_Tracking(
         max_size = 10000,
         tracker_name = "strongsort"
 ):
-    if tracker_name == "deepsort":
-        # create a tracker with the pre-trained feature extraction model
-        tracker = DeepSort(
-            "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
-        )
-    elif tracker_name == "strongsort":
-        tracker = StrongSort(
-            "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
-        )
-    print(f"{tracker_name} Tracker will be used for tracking!")
+    # if tracker_name == "deepsort":
+    #     # create a tracker with the pre-trained feature extraction model
+    #     tracker = DeepSort(
+    #         "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
+    #     )
+    # elif tracker_name == "strongsort":
+    #     tracker = StrongSort(
+    #         "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
+    #     )
     num_of_videos = count_subfolders(input_video_dir)
     print(f"Number of videos: {num_of_videos}")
     # Create accumulator
@@ -87,15 +85,32 @@ def Object_Tracking(
             )
             video_frame_count = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        print("Loading Model...")
-        model, cfg, yolo_cfg = load_model(detector, min_size, max_size, video_width / video_height, score_threshold, nms_threshold)
-        print("Model Loaded!")
 
         # the number of current frame
         frame_idx = 1
         MOT_path = os.path.join(input_video_dir, f"video{idx}", "MOT")
         predicted_MOT_path = os.path.join(MOT_path, "predicted.txt")
         with open(predicted_MOT_path, "w") as f:
+            print("Loading Object Detection Model...")
+            model, cfg, yolo_cfg = load_model(detector, min_size, max_size, video_width / video_height, score_threshold,
+                                              nms_threshold)
+            print(f"{detector} Loaded!")
+            print("...")
+            print("Loading Object Tracking Model...")
+            if tracker_name == "deepsort":
+                # create a tracker with the pre-trained feature extraction model
+                tracker = DeepSort(
+                    "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
+                )
+            elif tracker_name == "strongsort":
+                tracker = StrongSort(
+                    "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
+                )
+
+            print(f"{tracker_name} Tracker will be used for tracking!")
+            print("Boundary supported? ", match_across_boundary)
+            print("Category supported? ", prevent_different_classes_match)
+
             pbar = tqdm(total=video_frame_count, desc="Processing frames")
 
             # for each image frame in the video
@@ -118,7 +133,7 @@ def Object_Tracking(
                     True,
                     use_mymodel,
                     detector,
-                    match_across_boundary,
+                    not match_across_boundary, # means not split image2
                     yolo_cfg
                 )
                 # convert the bboxes from [x,y,x,y] to [xc,yc,w,h]
@@ -225,6 +240,10 @@ def boolean_string(s):
 
 
 def main(opt):
+
+    SEED = 42
+    set_seed(SEED)
+
     Object_Tracking(
         opt.input_video_path,
         opt.prevent_different_classes_match,
@@ -264,8 +283,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--detector", type=str, choices=["YOLO", "Faster RCNN"], default="YOLO"
     )
-    parser.add_argument("--score_threshold", type=float, default=0.4)
-    parser.add_argument("--nms_threshold", type=float, default=0.45)
+    parser.add_argument("--score_threshold", type=float, default=0.5)
+    parser.add_argument("--nms_threshold", type=float, default=0.5)
     parser.add_argument("--use_mymodel", default=True, type=boolean_string)
     parser.add_argument(
         "--tracker", type=str, choices=["deepsort", "strongsort"], default="deepsort"

@@ -122,7 +122,7 @@ def reproject_bboxes(
 
     index = 0
     # number of pixels occupied by (overlaped_degree/2) degrees on the sub image
-    margin = int(lon_map_original.shape[0] / 120 * (overlaped_degree / 2))
+    margin = int(lon_map_original.shape[0] / 120 * overlaped_degree)
 
     # for each bbox, class and score
     for bbox, class1, score in zip(bboxes, classes, scores):
@@ -152,14 +152,13 @@ def reproject_bboxes(
 
             # check if a bbox coincides with the left/right boundaries of the sub image, if yes, assign its index to left_boundary_box/right_boundary_box
             # if the bbox is large (>subimage size/5), use the threshold to do the judgement
-            if (right_bottom_x - left_top_x) * (right_bottom_y - left_top_y) < lon_map_original.shape[0] * lon_map_original.shape[0] / 5:
+            if (right_bottom_x - left_top_x) * (right_bottom_y - left_top_y) > lon_map_original.shape[0] * lon_map_original.shape[0] / 5:
                 if left_top_x <= threshold_of_boundary:
                     left_boundary_box = index
                 if right_bottom_x >= lon_map_original.shape[0] - threshold_of_boundary:
                     right_boundary_box = index
 
             # if the bbox is small (<=subimage size/5), set the threshold a little bit larger
-            # (No why, just based on my experience ^_^)
             else:
                 if left_top_x <= (
                         threshold_of_boundary + 15 * int(lon_map_original.shape[0] / 640)
@@ -320,7 +319,7 @@ def merge_bbox_across_boundary(
     # first delete the bboxes which are on the boundary and are totally in the overlapped areas
     names = locals()
     for i in range(0, 8, 1):
-        if bboxes_boundary[i] != None:
+        if bboxes_boundary[i] is not None:
             #  although the overlapped area is 30 degree in width, here we set the threshold as 40, for after some tests, it seems 40 can get better performance.
             if (
                     bboxes_all[bboxes_boundary[i]][2] - bboxes_all[bboxes_boundary[i]][0]
@@ -338,7 +337,10 @@ def merge_bbox_across_boundary(
     bboxes_boundary7 = bboxes_boundary[6]
     bboxes_boundary8 = bboxes_boundary[7]
 
+    bboxes_to_delete
+
     # if the object crosses all the 4 overlapped areas (12 34 56 78)
+    # TODO: why we need condition (bboxes_boundary1 == bboxes_boundary4)?
     if (
             bboxes_boundary1 != None
             and bboxes_boundary2 != None
@@ -348,9 +350,9 @@ def merge_bbox_across_boundary(
             and bboxes_boundary6 != None
             and bboxes_boundary7 != None
             and bboxes_boundary8 != None
-            and (bboxes_boundary1 == bboxes_boundary4)
-            and (bboxes_boundary3 == bboxes_boundary6)
-            and (bboxes_boundary5 == bboxes_boundary8)
+            # and (bboxes_boundary1 == bboxes_boundary4)
+            # and (bboxes_boundary3 == bboxes_boundary6)
+            # and (bboxes_boundary5 == bboxes_boundary8)
     ):
         bboxes_all.extend(
             MBR_bboxes(
@@ -429,8 +431,8 @@ def merge_bbox_across_boundary(
                 and bboxes_boundary4 != None
                 and bboxes_boundary5 != None
                 and bboxes_boundary6 != None
-                and (bboxes_boundary1 == bboxes_boundary4)
-                and (bboxes_boundary3 == bboxes_boundary6)
+                # and (bboxes_boundary1 == bboxes_boundary4)
+                # and (bboxes_boundary3 == bboxes_boundary6)
         ):
             bboxes_all.extend(
                 MBR_bboxes(
@@ -531,8 +533,8 @@ def merge_bbox_across_boundary(
                 and bboxes_boundary6 != None
                 and bboxes_boundary7 != None
                 and bboxes_boundary8 != None
-                and (bboxes_boundary3 == bboxes_boundary6)
-                and (bboxes_boundary5 == bboxes_boundary8)
+                # and (bboxes_boundary3 == bboxes_boundary6)
+                # and (bboxes_boundary5 == bboxes_boundary8)
         ):
             bboxes_all.extend(
                 MBR_bboxes(
@@ -632,7 +634,7 @@ def merge_bbox_across_boundary(
                     and bboxes_boundary2 != None
                     and bboxes_boundary3 != None
                     and bboxes_boundary4 != None
-                    and (bboxes_boundary1 == bboxes_boundary4)
+                    # and (bboxes_boundary1 == bboxes_boundary4)
             ):
                 bboxes_all.extend(
                     MBR_bboxes(
@@ -771,7 +773,7 @@ def merge_bbox_across_boundary(
                     and bboxes_boundary4 != None
                     and bboxes_boundary5 != None
                     and bboxes_boundary6 != None
-                    and (bboxes_boundary3 == bboxes_boundary6)
+                    # and (bboxes_boundary3 == bboxes_boundary6)
             ):
                 bboxes_all.extend(
                     MBR_bboxes(
@@ -910,7 +912,7 @@ def merge_bbox_across_boundary(
                     and bboxes_boundary6 != None
                     and bboxes_boundary7 != None
                     and bboxes_boundary8 != None
-                    and (bboxes_boundary5 == bboxes_boundary8)
+                    # and (bboxes_boundary5 == bboxes_boundary8)
             ):
                 bboxes_all.extend(
                     MBR_bboxes(
@@ -1202,6 +1204,8 @@ def merge_bbox_across_boundary(
 
     # delete the boxes that have been merged from the lists
     bboxes_to_delete = list(set(bboxes_to_delete))
+    # if bboxes_to_delete:
+    #     print("valid")
     bboxes_to_delete.sort(reverse=True)
     for i in bboxes_to_delete:
         bboxes_all.pop(i)
@@ -1329,76 +1333,78 @@ def predict_one_frame(
         # list for storing the index of the bounding boxes which intersect with the boundaries of the sub images
         bboxes_boundary = [None] * 8
 
+        # extractor = Extractor(model_path, use_cuda=use_cuda)
+
         # if a Faster RCNN model is being used
-        if model == "Faster RCNN":
-            # for each sub image
-            for i in range(len(subimgs)):
-                # get the detection results with the predictor
-                outputs1 = predictor(subimgs[i])
-
-                # --------  if you want to save and check the detail of the results on each sub image, run the code below  ----------
-                # v1 = Visualizer(
-                #     subimgs[i][:, :, ::-1],
-                #     MetadataCatalog.get(cfg.DATASETS.TRAIN[0]),
-                #     scale=1.0,
-                # )
-                # im1 = v1.draw_instance_predictions(outputs1["instances"].to("cpu"))
-                # cv2.imwrite(
-                #     "./outtest/subdetect" + str(i) + ".png", im1.get_image()[:, :, ::-1]
-                # )
-                # --------  end of this part  ----------
-
-                # get the bboxes, classes and scores of the instances detected
-                bboxes = outputs1["instances"].pred_boxes.tensor.cpu().numpy()
-                classes = outputs1["instances"].pred_classes.cpu().numpy()
-                scores = outputs1["instances"].scores.cpu().numpy()
-
-                # # do NMS on the bboxes despite the category
-                # # keep_boxes is a list which stores the index of the bboxes to keep after NMS
-                # keep_boxes = torchvision.ops.nms(
-                #     torch.tensor(bboxes), torch.tensor(scores), 0.45
-                # )
-
-                # for each bbox in the current sub image, reproject it to the original image
-                (
-                    reprojected_bboxes,
-                    classes,
-                    scores,
-                    left_boundary_box,
-                    right_boundary_box,
-                ) = reproject_bboxes(
-                    # torch.tensor(bboxes)[keep_boxes],
-                    torch.tensor(bboxes),
-                    lon_maps[i],
-                    lat_maps[i],
-                    torch.tensor(classes),
-                    torch.tensor(scores),
-                    10,
-                    i,
-                    video_width,
-                    video_height,
-                    len(subimgs),
-                    sub_image_width / 640 * 20,
-                    split_image2,
-                )
-
-                # get the index of the bboxes which intersect the boundaries of the sub images
-                if left_boundary_box != None:
-                    bboxes_boundary[
-                        number_of_left_and_right_boundary(i)[0]
-                    ] = left_boundary_box + len(bboxes_all)
-                if right_boundary_box != None:
-                    bboxes_boundary[
-                        number_of_left_and_right_boundary(i)[1]
-                    ] = right_boundary_box + len(bboxes_all)
-
-                # add the bboxes after reprojection to the lists which contain bboxes from all the sub images
-                bboxes_all += reprojected_bboxes
-                classes_all += classes
-                scores_all += scores
+        # if model == "Faster RCNN":
+        #     # for each sub image
+        #     for i in range(len(subimgs)):
+        #         # get the detection results with the predictor
+        #         outputs1 = predictor(subimgs[i])
+        # 
+        #         # --------  if you want to save and check the detail of the results on each sub image, run the code below  ----------
+        #         # v1 = Visualizer(
+        #         #     subimgs[i][:, :, ::-1],
+        #         #     MetadataCatalog.get(cfg.DATASETS.TRAIN[0]),
+        #         #     scale=1.0,
+        #         # )
+        #         # im1 = v1.draw_instance_predictions(outputs1["instances"].to("cpu"))
+        #         # cv2.imwrite(
+        #         #     "./outtest/subdetect" + str(i) + ".png", im1.get_image()[:, :, ::-1]
+        #         # )
+        #         # --------  end of this part  ----------
+        # 
+        #         # get the bboxes, classes and scores of the instances detected
+        #         bboxes = outputs1["instances"].pred_boxes.tensor.cpu().numpy()
+        #         classes = outputs1["instances"].pred_classes.cpu().numpy()
+        #         scores = outputs1["instances"].scores.cpu().numpy()
+        # 
+        #         # # do NMS on the bboxes despite the category
+        #         # # keep_boxes is a list which stores the index of the bboxes to keep after NMS
+        #         # keep_boxes = torchvision.ops.nms(
+        #         #     torch.tensor(bboxes), torch.tensor(scores), 0.45
+        #         # )
+        # 
+        #         # for each bbox in the current sub image, reproject it to the original image
+        #         (
+        #             reprojected_bboxes,
+        #             classes,
+        #             scores,
+        #             left_boundary_box,
+        #             right_boundary_box,
+        #         ) = reproject_bboxes(
+        #             # torch.tensor(bboxes)[keep_boxes],
+        #             torch.tensor(bboxes),
+        #             lon_maps[i],
+        #             lat_maps[i],
+        #             torch.tensor(classes),
+        #             torch.tensor(scores),
+        #             10,
+        #             i,
+        #             video_width,
+        #             video_height,
+        #             len(subimgs),
+        #             sub_image_width / 640 * 20,
+        #             split_image2,
+        #         )
+        # 
+        #         # get the index of the bboxes which intersect the boundaries of the sub images
+        #         if left_boundary_box != None:
+        #             bboxes_boundary[
+        #                 number_of_left_and_right_boundary(i)[0]
+        #             ] = left_boundary_box + len(bboxes_all)
+        #         if right_boundary_box != None:
+        #             bboxes_boundary[
+        #                 number_of_left_and_right_boundary(i)[1]
+        #             ] = right_boundary_box + len(bboxes_all)
+        # 
+        #         # add the bboxes after reprojection to the lists which contain bboxes from all the sub images
+        #         bboxes_all += reprojected_bboxes
+        #         classes_all += classes
+        #         scores_all += scores
 
         # if a YOLO model is being used
-        elif model == "YOLO":
+        if model == "YOLO":
 
             # for each sub image, first change the color from BGR to RGB
             for i in range(len(subimgs)):
@@ -1447,7 +1453,7 @@ def predict_one_frame(
                     lat_maps[i],
                     classes,
                     scores,
-                    10,
+                    1,
                     i,
                     video_width,
                     video_height,
@@ -1457,6 +1463,8 @@ def predict_one_frame(
                 )
 
                 # get the index of the bboxes which intersect the boundaries of the sub images
+                # TODO: what does left_boundary_box represent? Ans: the index of bbox within the margin
+                # TODO: there might be a problem with the value of bboxes_boundary
                 if left_boundary_box != None:
                     bboxes_boundary[
                         number_of_left_and_right_boundary(i)[0]
@@ -1470,8 +1478,8 @@ def predict_one_frame(
                 bboxes_all = bboxes_all + reprojected_bboxes
                 classes_all = classes_all + classes
                 scores_all = scores_all + scores
-
         # merge the boxes which goes across the boundaries with merge_bbox_across_boundary()
+        # TODO: enable the merge or not
         bboxes_all, classes_all, scores_all = merge_bbox_across_boundary(
             bboxes_all,
             classes_all,
@@ -1482,6 +1490,7 @@ def predict_one_frame(
         )
 
         # do NMS on the output bboxes again to get the index of the boxes which should be kept
+        # TODO: iou_threshold can be tuned to remove unmerged bboxes.
         if bboxes_all: # if the list is not empty, i.e. there are bboxes detected
             keep = batched_nms(
                 torch.tensor(bboxes_all),

@@ -3,6 +3,7 @@ import time
 import torch
 import cv2
 import numpy as np
+from torchvision.ops import batched_nms
 from ultralytics import YOLO
 
 from panoramic_detection import improved_OD as OD
@@ -13,6 +14,7 @@ from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from panoramic_detection.improved_OD import load_model
+from strong_sort_new import StrongSort
 
 
 # function used to realize object tracking on a panoramic video
@@ -75,7 +77,7 @@ def Object_Tracking(
     print("Model Loaded!")
 
     # create a deepsort instance with the pre-trained feature extraction model
-    deepsort = DeepSort(
+    tracker = StrongSort(
         "./deep_sort/deep/checkpoint/ckpt.t7", use_cuda=torch.cuda.is_available()
     )
 
@@ -101,13 +103,13 @@ def Object_Tracking(
             True,
             use_mymodel,
             model_type,
-            not match_across_boundary,
+            not match_across_boundary, # False means do not split image2
             yolo_cfg
         )
         # convert the bboxes from [x,y,x,y] to [xc,yc,w,h]
         bboxes_all_xcycwh = OD.xyxy2xcycwh(bboxes_all)
         # update deepsort and get the tracking results
-        track_outputs = deepsort.update(
+        track_outputs = tracker.update(
             np.array(bboxes_all_xcycwh),
             np.array(classes_all),
             np.array(scores_all),
@@ -124,21 +126,6 @@ def Object_Tracking(
             im = draw_boxes(
                 im, bbox_xyxy, track_classes, track_scores, video_width, identities
             )
-            # for bb_xyxy, track_class, identity in zip(
-            #     bbox_xyxy, track_classes, identities
-            # ):
-            #     f.write(
-            #         str(num_of_frame)
-            #         + ","
-            #         + str(int(identity))
-            #         + ","
-            #         + str(deepsort._xyxy_to_tlwh(bb_xyxy))
-            #         .strip("(")
-            #         .strip(")")
-            #         .replace(" ", "")
-            #         + ","
-            #         + "-1,-1,-1,-1\n"
-            #     )
         outputfile.write(im)
         # show the current FPS
         time2 = time.time()
@@ -169,12 +156,12 @@ def parse_opt():
     parser.add_argument("--FOV", type=int, default=120)
     parser.add_argument("--THETAs", nargs="+", type=int, default=[0, 90, 180, 270])
     parser.add_argument("--PHIs", nargs="+", type=int, default=[-10, -10, -10, -10])
-    parser.add_argument("--short_edge_size", type=int, default=640)
+    parser.add_argument("--short_edge_size", type=int, default=1280)
     parser.add_argument(
         "--model_type", type=str, choices=["YOLO", "Faster RCNN"], default="YOLO"
     )
-    parser.add_argument("--score_threshold", type=float, default=0.4)
-    parser.add_argument("--nms_threshold", type=float, default=0.45)
+    parser.add_argument("--score_threshold", type=float, default=0.5)
+    parser.add_argument("--nms_threshold", type=float, default=0.5)
     parser.add_argument("--use_mymodel", default=True, type=boolean_string)
     opt = parser.parse_args()
     # print(opt)
