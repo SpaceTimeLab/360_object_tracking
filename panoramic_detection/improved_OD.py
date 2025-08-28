@@ -15,7 +15,6 @@ import lib.Equirec2Perspec as E2P
 
 import time
 from detectron2.layers import batched_nms
-from detectron2.structures import Instances, Boxes
 
 
 # function used to load a YOLO or Faster RCNN model according to the users' demands

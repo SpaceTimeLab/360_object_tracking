@@ -26,58 +26,59 @@ def draw_boxes(
     forwards_tracks=None,
     unconfirmed_left_overtaking=None,
     unconfirmed_right_overtaking=None,
-    threshold=[500 * 500, 900 * 900, 600 * 600],
+    threshold=[400 * 400, 400 * 400, 400 * 400],
     close_overtaking_warning=False,
     classes_to_detect_movement=[2, 4, 5],
     offset=(0, 0),
 ):
+    redbox_num = 0
     # if close overtaking warning is on
-    if close_overtaking_warning:
-
-        # draw a meter showing the direction of the cars which take over the cyclist
-        white_area = np.zeros(img.shape, np.uint8)
-        cv2.circle(white_area, (500, 500), 300, (255, 255, 255), thickness=-1)
-        img = cv2.addWeighted(img, 1, white_area, 0.6, 1)
-        cv2.circle(img, (500, 500), 300, (0, 0, 0), thickness=5)
-        cv2.putText(
-            img,
-            "0",
-            (500, 180),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            [0, 0, 0],
-            2,
-        )
-
-        cv2.putText(
-            img,
-            "90",
-            (820, 500),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            [0, 0, 0],
-            2,
-        )
-
-        cv2.putText(
-            img,
-            "180",
-            (480, 830),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            [0, 0, 0],
-            2,
-        )
-
-        cv2.putText(
-            img,
-            "-90",
-            (120, 500),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            [0, 0, 0],
-            2,
-        )
+    # if close_overtaking_warning:
+    #
+    #     # draw a meter showing the direction of the cars which take over the cyclist
+    #     white_area = np.zeros(img.shape, np.uint8)
+    #     cv2.circle(white_area, (500, 500), 300, (255, 255, 255), thickness=-1)
+    #     img = cv2.addWeighted(img, 1, white_area, 0.6, 1)
+    #     cv2.circle(img, (500, 500), 300, (0, 0, 0), thickness=5)
+    #     cv2.putText(
+    #         img,
+    #         "0",
+    #         (500, 180),
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         1,
+    #         [0, 0, 0],
+    #         2,
+    #     )
+    #
+    #     cv2.putText(
+    #         img,
+    #         "90",
+    #         (820, 500),
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         1,
+    #         [0, 0, 0],
+    #         2,
+    #     )
+    #
+    #     cv2.putText(
+    #         img,
+    #         "180",
+    #         (480, 830),
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         1,
+    #         [0, 0, 0],
+    #         2,
+    #     )
+    #
+    #     cv2.putText(
+    #         img,
+    #         "-90",
+    #         (120, 500),
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         1,
+    #         [0, 0, 0],
+    #         2,
+    #     )
 
     # for each object, plot the box and label of it
     for i, box in enumerate(bbox):
@@ -117,12 +118,13 @@ def draw_boxes(
             if close_overtaking_warning == True and (
                 id in unconfirmed_left_overtaking or id in unconfirmed_right_overtaking
             ):
-                # if the size of the objects moving forwards is lager than a threshold
+                # if the size of the objects moving forwards is larger than a threshold
                 bbox_size = (x2 - x1) * (y2 - y1)
                 fillred = False
                 for class1, threshold1 in zip(classes_to_detect_movement, threshold):
                     if track_classes[i] == class1 and bbox_size > threshold1:
                         fillred = True
+                        redbox_num += 1
                 if fillred:
                     # fill the bounding box with red
                     red_area = np.zeros(img.shape, np.uint8)
@@ -135,19 +137,19 @@ def draw_boxes(
                     #     int(500 + math.sin(angle) * 500),
                     #     int(500 - math.cos(angle) * 500),
                     # )
-                    cv2.arrowedLine(
-                        img,
-                        (500, 500),
-                        (
-                            int(500 + math.sin(angle) * 300),
-                            int(500 - math.cos(angle) * 300),
-                        ),
-                        (0, 0, 255),
-                        5,
-                        0,
-                        0,
-                        0.1,
-                    )
+                    # cv2.arrowedLine(
+                    #     img,
+                    #     (500, 500),
+                    #     (
+                    #         int(500 + math.sin(angle) * 300),
+                    #         int(500 - math.cos(angle) * 300),
+                    #     ),
+                    #     (0, 0, 255),
+                    #     5,
+                    #     0,
+                    #     0,
+                    #     0.1,
+                    # )
 
         else:
             label = (
@@ -207,7 +209,7 @@ def draw_boxes(
                 [255, 255, 255],
                 2,
             )
-    return img
+    return img, redbox_num
 
 
 # a function used to get the corresponding class of the index number in COCO dataset
