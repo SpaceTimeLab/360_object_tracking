@@ -59,9 +59,9 @@ gdown 'https://drive.google.com/uc?export=download&id=1_qwTWdzT9dWNudpusgKavj_4e
 cd ../../../
 ```
 
-## Instruction of the Main Functionalities
+## Main functionality
 
-The implementation process of each functionality is explained in detail in [Code Explanation.ipynb](./Code%20Explanation.ipynb).
+The implementation process of each functionality (object detection, object tracking, and overtaking detection) is explained in detail in [`Code Explanation.ipynb`](./Code%20Explanation.ipynb).
 
 ### 360 Object Detection
 
@@ -154,6 +154,14 @@ python Object_Tracking.py --input_video_path test.mp4 --output_video_path test_o
 ```
 python Overtaking_Detection.py --input_video_path test.mp4 --output_video_path test_overtaking_detection.mp4 --mode 'Unconfirmed' --classes_to_detect_movement 2 --size_thresholds 160000
 ```
+
+## Model evaluation
+
+See `evaluation_code/` for evaluation scripts. They:
+
+- Load ground truth annotations and compare against predictions using COCOeval
+- Compute standard COCO metrics (AP, AR) across different object sizes
+- Generate JSON files with detection results in COCO format for each video
 
 ## To cite
 
