@@ -1,27 +1,17 @@
-# 360_object_tracking
+# Multiple Object Detection and Tracking in Panoramic Videos for Cycling Safety Analysis
 
-This is a package used for object detection, object tracking and overtaking behaviour detection on panoramic (360) videos of equirectangular projection, which is implemented according to Jingwei Guo's thesis.
+[![arXiv preprint](https://img.shields.io/badge/arXiv%20preprint-2407.15199-green)](https://arxiv.org/abs/2407.15199)
 
-[YOLO v5](https://github.com/ultralytics/yolov5) and [Faster RCNN](https://github.com/facebookresearch/detectron2) models pre-trained on COCO dataset are used as the detectors in this package. Projection transformation from equirectangular to perspective is realized using [Perspective-and-Equirectangular](https://github.com/timy90022/Perspective-and-Equirectangular)
- and the implementation of DeepSORT was adapted from [HERE](https://github.com/ZQPei/deep_sort_pytorch).
+Authors: Jingwei Guo, [Yitai Cheng](https://github.com/yitai-cheng/), [Meihui Wang](https://github.com/Ceciliawangwang/), [Ilya Ilyankou](https://github.com/ilyankou/), [Natchapon Jongwiriyanurak](https://github.com/PongNJ/), [Xiaowei Gao](https://github.com/UCLWilson/), Nicola Christie, James Haworth
 
-## Multiple Object Detection and Tracking in Panoramic Videos for Cycling Safety Analysis
-By Jingwei Guo, Meihui Wang, Ilya Ilyankou, Natchapon Jongwiriyanurak, Xiaowei Gao, Nicola Christie, James Haworth
+This package is used for object detection, object tracking, and overtaking behaviour detection on panoramic (360°) equirectangular videos, initially developed as part of Jingwei Guo's MSc thesis.
 
-If you find the project useful in your research, please consider citing:
-```
-@misc{guo2024multipleobjectdetectiontracking,
-      title={Multiple Object Detection and Tracking in Panoramic Videos for Cycling Safety Analysis},
-      author={Jingwei Guo and Meihui Wang and Ilya Ilyankou and Natchapon Jongwiriyanurak and Xiaowei Gao and Nicola Christie and James Haworth},
-      year={2024},
-      eprint={2407.15199},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2407.15199},
-}
-```
+The approach improves detection by projecting equirectangular frames into four overlapping perspective sub-images, applying detectors, and then reprojecting and merging bounding boxes to handle distortions and long objects. [YOLOv12](https://github.com/sunsmarterjie/yolov12) models pre-trained on the COCO dataset are used as detectors. Tracking is based on StrongSORT (see https://github.com/yitai-cheng/StrongSORT), modified to incorporate object category information and boundary continuity, reducing false positives and ID switches in panoramic views. The overtaking detection module builds on these tracking results, identifying and classifying overtaking manoeuvres by vehicles around cyclists.
+
+![](images_in_markdown/figure4.png)
 
 ## Dependencies and Installation
+
 The library should be run under Python 3.3+ with the following libraries installed:
 
 [detectron2 (version updated before Aug 5, 2022 only)](https://github.com/facebookresearch/detectron2/tree/5aeb252b194b93dc2879b4ac34bc51a31b5aee13)
@@ -46,17 +36,21 @@ The library should be run under Python 3.3+ with the following libraries install
 
 1. First, clone the repository:
 ```
-git clone https://github.com/cuppp1998/360_object_tracking.git
+git clone https://github.com/SpaceTimeLab/360_object_tracking
 ```
-2. To install all the dependencies (except Detectron2), run the following command in a new conda environment:
+2. To install all the dependencies (except Detectron2), run the following command in a new conda environment called, for example, `360`:
 ```
-cd 360_object_tracking
+conda create --name 360 -c conda-forge python=3.8
+conda install pip
 pip install -r requirements.txt
 ```
 3. Since in the new versions of Detectron2 (updated after Aug 5, 2022), some APIs have been modified, here we install an old version of it:
 ```
 pip install -e git+https://github.com/facebookresearch/detectron2.git@5aeb252b194b93dc2879b4ac34bc51a31b5aee13#egg=detectron2
+
+pip install pillow==9.5.0 # see https://github.com/facebookresearch/detectron2/issues/5010#issuecomment-1752284625
 ```
+
 4. Download the pre-trained ReID network used in DeepSORT:
 ```
 cd deep_sort/deep/checkpoint
@@ -66,7 +60,9 @@ cd ../../../
 ```
 
 ## Instruction of the Main Functionalities
+
 The implementation process of each functionality is explained in detail in [Code Explanation.ipynb](./Code%20Explanation.ipynb).
+
 ### 360 Object Detection
 
 To realize object detection on panoramic videos of equirectangular projection, execute Object_Detection.py in the Terminal as below:
@@ -157,4 +153,20 @@ python Object_Tracking.py --input_video_path test.mp4 --output_video_path test_o
 3. To track people, bicycles, cars, motorbikes, buses, trucks and traffic lights ([0, 1, 2, 3, 5, 7, 9] in COCO) in a video called test.mp4 and <b>detect the close unconfirmed overtakes (size<160000)</b> of only cars with the improved YOLO v5 whose input resolution is 640, and to output the result video as test_overtaking_detection.mp4, run the following command:
 ```
 python Overtaking_Detection.py --input_video_path test.mp4 --output_video_path test_overtaking_detection.mp4 --mode 'Unconfirmed' --classes_to_detect_movement 2 --size_thresholds 160000
+```
+
+## To cite
+
+If you find the project useful in your research, please consider citing:
+
+```
+@misc{guo2024multipleobjectdetectiontracking,
+      title={Multiple Object Detection and Tracking in Panoramic Videos for Cycling Safety Analysis},
+      author={Jingwei Guo and Yitai Cheng and Meihui Wang and Ilya Ilyankou and Natchapon Jongwiriyanurak and Xiaowei Gao and Nicola Christie and James Haworth},
+      year={2024},
+      eprint={2407.15199},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2407.15199},
+}
 ```
