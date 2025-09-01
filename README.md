@@ -12,7 +12,7 @@ The approach improves detection by projecting equirectangular frames into four o
 
 ## Dependencies and Installation
 
-The library should be run under Python 3.3+ with the following libraries installed:
+The library should be run under Python 3.8+ with the following libraries installed:
 
 [detectron2 (version updated before Aug 5, 2022 only)](https://github.com/facebookresearch/detectron2/tree/5aeb252b194b93dc2879b4ac34bc51a31b5aee13)
 
@@ -71,19 +71,20 @@ python Object_Detection.py [--input_video_path INPUT_VIDEO_PATH] [--output_video
 ```
 The following arguments are provided:
 
-|  Argument   | Description  | Required? | Defaults |
-|  :----:  | :----:  | :----:  | :----:  |
-| INPUT_VIDEO_PATH  | Path of the input video | ✔️ |  |
-| OUTPUT_VIDEO_PATH  | Path of the output video | ✔️ |  |
-| CLASSES_TO_DETECT  | Index numbers of the categories to detect in the COCO dataset |  | [0, 1, 2, 3, 5, 7, 9] |
-| FOV  | Field of view of the sub images |  | 120 |
-| THETAS  | A list which contains the theta of each sub image (The length should be the same as the number of sub images) |  | [0, 90, 180, 270] |
-| PHIS  | A list which contains the Phi of each sub image (The length should be the same as the number of sub images) |  | [-10, -10, -10, -10] |
-| SUB_IMAGE_WIDTH  | Width (or height) of the sub images |  | 640 |
-| MODEL_TYPE  | A string that determines which detector to use ("YOLO" or "Faster RCNN") |  |"YOLO" |
-| SCORE_THRESHOLD  | The threshold of the confidence score |  | 0.4 |
-| NMS_THRESHOLD  | The threshold of the Non Maximum Suppression |  | 0.45 |
-| USE_MYMODEL  | A boolean value which determines whether to use the improved object detection model, if False, instead of being split into 4 parts, the image will be detected as a whole |  | True |
+|  Argument   |                                                                                Description                                                                                | Required? |       Defaults        |
+|  :----:  |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------:| :----:  |:---------------------:|
+| INPUT_VIDEO_PATH  |                                                                          Path of the input video                                                                          | ✔️ |                       |
+| OUTPUT_VIDEO_PATH  |                                                                         Path of the output video                                                                          | ✔️ |                       |
+| CLASSES_TO_DETECT  |                                                       Index numbers of the categories to detect in the COCO dataset                                                       |  | [0, 1, 2, 3, 5, 7, 9] |
+| FOV  |                                                                      Field of view of the sub images                                                                      |  |          120          |
+| THETAS  |                               A list which contains the theta of each sub image (The length should be the same as the number of sub images)                               |  |   [0, 90, 180, 270]   |
+| PHIS  |                                A list which contains the Phi of each sub image (The length should be the same as the number of sub images)                                |  | [-10, -10, -10, -10]  |
+| SUB_IMAGE_WIDTH  |                                                                    Width (or height) of the sub images                                                                    |  |          640          |
+| MODEL_TYPE  |                                                 A string that determines which detector to use ("YOLO" or "Faster RCNN")                                                  |  |        "YOLO"         |
+| SCORE_THRESHOLD  |                                                                   The threshold of the confidence score                                                                   |  |          0.4          |
+| NMS_THRESHOLD  |                                                               The threshold of the Non Maximum Suppression                                                                |  |         0.45          |
+| USE_MYMODEL  | A boolean value which determines whether to use the improved object detection model, if False, instead of being split into 4 parts, the image will be detected as a whole |  |         True          |
+| short_edge_size  |                                                                         The length of short edge                                                                          |  |           0           |
 
 ### 360 Object Tracking
 
@@ -93,22 +94,21 @@ python Object_Tracking.py [--input_video_path INPUT_VIDEO_PATH] [--output_video_
 ```
 The following arguments are provided:
 
-|  Argument   | Description  | Required? | Defaults |
-|  :----:  | :----:  | :----:  | :----:  |
-| INPUT_VIDEO_PATH  | Path of the input video | ✔️ |  |
-| OUTPUT_VIDEO_PATH  | Path of the output video | ✔️ |  |
-| MOT_TEXT_PATH  | Path of the output txt file which stores all the MOT tracking results | ✔️ |  |
-| PREVENT_DIFFERENT_CLASSES_MATCH  | A boolean value which determines whether to use the support for multiple categories in DeepSORT |  | True |
-| MATCH_ACROSS_BOUNDARY  | A boolean value which determines whether to use the support for boundary continuity in DeepSORT |  | True |
-| CLASSES_TO_DETECT  | Index numbers of the categories to detect in the COCO dataset |  | [0, 1, 2, 3, 5, 7, 9] |
-| FOV  | Field of view of the sub images |  | 120 |
-| THETAS  | A list which contains the theta of each sub image (The length should be the same as the number of sub images) |  | [0, 90, 180, 270] |
-| PHIS  | A list which contains the Phi of each sub image (The length should be the same as the number of sub images) |  | [-10, -10, -10, -10] |
-| SUB_IMAGE_WIDTH  | Width (or height) of the sub images |  | 640 |
-| MODEL_TYPE  | A string that determines which detector to use ("YOLO" or "Faster RCNN") |  |"YOLO" |
-| SCORE_THRESHOLD  | The threshold of the confidence score |  | 0.4 |
-| NMS_THRESHOLD  | The threshold of the Non Maximum Suppression |  | 0.45 |
-| USE_MYMODEL  | A boolean value which determines whether to use the improved object detection model, if False, instead of being split into 4 parts, the image will be detected as a whole |  | True |
+|            Argument             | Description  | Required? |       Defaults        |
+|:-------------------------------:| :----:  | :----:  |:---------------------:|
+|        INPUT_VIDEO_PATH         | Path of the input video | ✔️ |                       |
+|        OUTPUT_VIDEO_PATH        | Path of the output video | ✔️ |                       |
+| PREVENT_DIFFERENT_CLASSES_MATCH | A boolean value which determines whether to use the support for multiple categories in DeepSORT |  |         True          |
+|      MATCH_ACROSS_BOUNDARY      | A boolean value which determines whether to use the support for boundary continuity in DeepSORT |  |         True          |
+|        CLASSES_TO_DETECT        | Index numbers of the categories to detect in the COCO dataset |  | [0, 1, 2, 3, 5, 7, 9] |
+|               FOV               | Field of view of the sub images |  |          120          |
+|             THETAS              | A list which contains the theta of each sub image (The length should be the same as the number of sub images) |  |   [0, 90, 180, 270]   |
+|              PHIS               | A list which contains the Phi of each sub image (The length should be the same as the number of sub images) |  | [-10, -10, -10, -10]  |
+|         SHORT_EDGE_SIZE         | Width (or height) of the sub images |  |         1280          |
+|           MODEL_TYPE            | A string that determines which detector to use ("YOLO" or "Faster RCNN") |  |        "YOLO"         |
+|         SCORE_THRESHOLD         | The threshold of the confidence score |  |          0.4          |
+|          NMS_THRESHOLD          | The threshold of the Non Maximum Suppression |  |         0.45          |
+|           USE_MYMODEL           | A boolean value which determines whether to use the improved object detection model, if False, instead of being split into 4 parts, the image will be detected as a whole |  |         True          |
 
 ### 360 Overtaking Behaviour Detection
 
@@ -118,50 +118,51 @@ python Overtaking_Detection.py [--input_video_path INPUT_VIDEO_PATH] [--output_v
 ```
 The following arguments are provided:
 
-|  Argument   | Description  | Required? | Defaults |
-|  :----:  | :----:  | :----:  | :----:  |
-| INPUT_VIDEO_PATH  | Path of the input video | ✔️ |  |
-| OUTPUT_VIDEO_PATH  | Path of the output video | ✔️ |  |
-| MODE | A string that determines which kind of overtaking behaviour to detect, "Confirmed" or "Unconfirmed" |  | "Confirmed" |
-| PREVENT_DIFFERENT_CLASSES_MATCH  | A boolean value which determines whether to use the support for multiple categories in DeepSORT |  | True |
-| MATCH_ACROSS_BOUNDARY  | A boolean value which determines whether to use the support for boundary continuity in DeepSORT |  | True |
-| CLASSES_TO_DETECT  | Index numbers of the categories to detect in the COCO dataset |  | [0, 1, 2, 3, 5, 7, 9] |
-| CLASSES_TO_DETECT_MOVEMENT  | Index numbers of the categories for movement detection in the COCO dataset, which should be a subset of classes_to_detect |  | [2, 5, 7] |
+|  Argument   | Description  | Required? |             Defaults              |
+|  :----:  | :----:  | :----:  |:---------------------------------:|
+| INPUT_VIDEO_PATH  | Path of the input video | ✔️ |                                   |
+| OUTPUT_VIDEO_PATH  | Path of the output video | ✔️ |                                   |
+| MODE | A string that determines which kind of overtaking behaviour to detect, "Confirmed" or "Unconfirmed" |  |            "Confirmed"            |
+| PREVENT_DIFFERENT_CLASSES_MATCH  | A boolean value which determines whether to use the support for multiple categories in DeepSORT |  |               True                |
+| MATCH_ACROSS_BOUNDARY  | A boolean value which determines whether to use the support for boundary continuity in DeepSORT |  |               True                |
+| CLASSES_TO_DETECT  | Index numbers of the categories to detect in the COCO dataset |  |       [0, 1, 2, 3, 5, 7, 9]       |
+| CLASSES_TO_DETECT_MOVEMENT  | Index numbers of the categories for movement detection in the COCO dataset, which should be a subset of classes_to_detect |  |             [2, 5, 7]             |
 | SIZE_THRESHOLDS  | A set of size thresholds which should share the same length with classes_to_detect_movement, if the size of a track of a certain class is larger than the corresponding threshold, then it is considered as close to the user |  | [500 * 500, 900 * 900, 600 * 600] |
-| FOV  | Field of view of the sub images |  | 120 |
-| THETAS  | A list which contains the theta of each sub image (The length should be the same as the number of sub images) |  | [0, 90, 180, 270] |
-| PHIS  | A list which contains the Phi of each sub image (The length should be the same as the number of sub images) |  | [-10, -10, -10, -10] |
-| SUB_IMAGE_WIDTH  | Width (or height) of the sub images |  | 640 |
-| MODEL_TYPE  | A string that determines which detector to use ("YOLO" or "Faster RCNN") |  |"YOLO" |
-| SCORE_THRESHOLD  | The threshold of the confidence score |  | 0.4 |
-| NMS_THRESHOLD  | The threshold of the Non Maximum Suppression |  | 0.45 |
-| USE_MYMODEL  | A boolean value which determines whether to use the improved object detection model, if False, instead of being split into 4 parts, the image will be detected as a whole |  | True |
+| FOV  | Field of view of the sub images |  |                120                |
+| THETAS  | A list which contains the theta of each sub image (The length should be the same as the number of sub images) |  |         [0, 90, 180, 270]         |
+| PHIS  | A list which contains the Phi of each sub image (The length should be the same as the number of sub images) |  |       [-10, -10, -10, -10]        |
+| SUB_IMAGE_WIDTH  | Width (or height) of the sub images |  |               1280                |
+| MODEL_TYPE  | A string that determines which detector to use ("YOLO" or "Faster RCNN") |  |              "YOLO"               |
+| SCORE_THRESHOLD  | The threshold of the confidence score |  |                0.4                |
+| NMS_THRESHOLD  | The threshold of the Non Maximum Suppression |  |               0.45                |
+| USE_MYMODEL  | A boolean value which determines whether to use the improved object detection model, if False, instead of being split into 4 parts, the image will be detected as a whole |  |               True                |
 
 ## Examples
 For better understanding, several examples of using this package is listed as below:
 
 1. To <b>detect</b> the bicycles, cars and motorbikes ([1, 2, 3] in COCO) in a video called test.mp4 with the <b>original</b> Faster RCNN and output the result video as test_object_detection.mp4, run the following command:
 ```
-python Object_Detection.py --input_video_path test.mp4 --output_video_path test_object_detection.mp4 --use_mymodel False --classes_to_detect 1 2 3 --model_type "Faster RCNN"
+python Object_Detection.py --input_video_path test.mp4 --output_video_path test_object_detection.mp4 --use_mymodel True  --model_type "YOLO"
 ```
 
 2. To <b>track</b> the people and cars ([0, 2] in COCO) in a video called test.mp4 with the improved YOLO v5 whose input resolution is 1280, and to output the result video and MOT texts as test_object_tracking.mp4 and test_object_tracking.txt, run the following command:
 ```
-python Object_Tracking.py --input_video_path test.mp4 --output_video_path test_object_tracking.mp4 --MOT_text_path test_object_tracking.txt --classes_to_detect 0 2 --sub_image_width 1280
+python Object_Tracking.py --input_video_path test.mp4 --output_video_path test_object_tracking.mp4 --short_edge_size 1280
 ```
 
 3. To track people, bicycles, cars, motorbikes, buses, trucks and traffic lights ([0, 1, 2, 3, 5, 7, 9] in COCO) in a video called test.mp4 and <b>detect the close unconfirmed overtakes (size<160000)</b> of only cars with the improved YOLO v5 whose input resolution is 640, and to output the result video as test_overtaking_detection.mp4, run the following command:
 ```
-python Overtaking_Detection.py --input_video_path test.mp4 --output_video_path test_overtaking_detection.mp4 --mode 'Unconfirmed' --classes_to_detect_movement 2 --size_thresholds 160000
+python Overtaking_Detection.py --input_video_path test.mp4 --output_video_path test_overtaking_detection.mp4 --mode 'Unconfirmed' --classes_to_detect_movement 2 5 7
 ```
 
 ## Model evaluation
 
 See `evaluation_code/` for evaluation scripts. They:
 
-- Load ground truth annotations and compare against predictions using COCOeval
-- Compute standard COCO metrics (AP, AR) across different object sizes
-- Generate JSON files with detection results in COCO format for each video
+- Load ground truth annotations and compare against predictions
+- Compute standard COCO metrics (AP, AR) using cocoeval 
+- Evaluate tracking performance using py-motmetrics 
+- Run overtaking detection on the video dataset and compare the result with ground truth
 
 ## To cite
 
