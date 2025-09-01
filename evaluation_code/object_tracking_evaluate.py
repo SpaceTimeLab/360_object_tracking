@@ -1,18 +1,16 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'detectron2'))
 import argparse
-import os
-
 import cv2
 import motmetrics as mm
 import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from ultralytics import YOLO
-
 from deep_sort.deep_sort import DeepSort
 from panoramic_detection import improved_OD as OD
 from panoramic_detection.improved_OD import load_model
-from strong_sort_new import StrongSort
+from strongsort.strong_sort_new import StrongSort
 from utils.seed_helper import set_seed
 
 

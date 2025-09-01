@@ -1,18 +1,11 @@
 import sys, os
-# # assume script lives alongside detectron2/
-proj_root = os.path.dirname(__file__)
-if proj_root not in sys.path:
-    sys.path.insert(0, os.path.join(proj_root, "detectron2"))
-import detectron2
-print(detectron2.__file__)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'detectron2'))
 from Overtaking_Detection import Overtaking_Detection
 import argparse
 import os
 from pathlib import Path
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
-
 
 
 def parse_opt():

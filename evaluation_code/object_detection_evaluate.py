@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'detectron2'))
 import logging
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.data.datasets.coco import load_coco_json
@@ -10,13 +12,9 @@ import torch
 from detectron2.data import DatasetCatalog
 from detectron2.structures import Instances, Boxes
 from detectron2.utils.visualizer import Visualizer
-import matplotlib.pyplot as plt
-import random
-import cv2
 from detectron2.evaluation import COCOEvaluator
 from detectron2.evaluation import inference_on_dataset
 import argparse
-from ultralytics import YOLO
 from tqdm import tqdm
 import json
 from panoramic_detection import improved_OD
@@ -27,54 +25,6 @@ import numpy as np
 from panoramic_detection.improved_OD import load_model
 from utils.seed_helper import set_seed
 
-# def load_model(model_type, min_size, max_size, score_threshold, nms_threshold, is_pano):
-#     # first get the default config
-#     cfg = get_cfg()
-#
-#     # choose a model from detectron2's model zoo
-#     cfg.merge_from_file(
-#         model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")
-#     )
-#     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-#         "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"
-#     )
-#     if is_pano:
-#         cfg.INPUT.MIN_SIZE_TEST = 0
-#     else:
-#         cfg.INPUT.MIN_SIZE_TEST = min_size  # set the size of the input images, if 0 then no resize
-#     cfg.INPUT.MAX_SIZE_TEST = max_size
-#     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = (
-#         score_threshold  # set the threshold of the confidence score
-#     )
-#     # cfg.MODEL.ROI_HEADS.NUM_CLASSES = 7
-#     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = nms_threshold  # set the NMS threshold
-#
-#     # set the device to use (GPU or CPU)
-#     if torch.cuda.is_available():
-#         print("GPU is available")
-#         cfg.MODEL.DEVICE = "cuda"
-#     else:
-#         cfg.MODEL.DEVICE = "cpu"
-#
-#     # create a predictor instance with the config above
-#     predictor_faster_rcnn = DefaultPredictor(cfg)
-#     yolo_cfg = dict()
-#     # TODO: need to change the name of yolo_cfg for fasterRCNN
-#     if model_type == "Faster RCNN":
-#         if min_size != 0:
-#             yolo_cfg['imgsz'] = (min_size, 2 * min_size)
-#         return predictor_faster_rcnn, cfg, yolo_cfg
-#     elif model_type == "YOLO":
-#         predictor_yolo = YOLO("yolo12n.pt")
-#         # if torch.cuda.is_available():
-#         #     predictor_yolo.to("cuda")
-#         # min_size == 0 means we don't do resizing on the input image
-#         if min_size != 0:
-#             yolo_cfg['imgsz'] = (min_size, 2 * min_size)
-#         yolo_cfg['conf'] = score_threshold
-#         yolo_cfg['iou'] = nms_threshold
-#         return predictor_yolo, cfg, yolo_cfg
-#     return None
 
 def compute_img_id_offsets(gt_paths):
     """
@@ -338,16 +288,6 @@ def main(args):
     evaluator.evaluate()
     evaluator.accumulate()
     evaluator.summarize()
-    # for coco_gt, coco_dt in zip(coco_gts, coco_dts):
-    #     print(f"\n=== Evaluating GT={coco_gt} vs DT={coco_dt} ===")
-    #     coco_gt_obj = COCO(coco_gt)
-    #     coco_dt_obj = coco_gt_obj.loadRes(coco_dt)
-    #     evaluator = COCOeval(coco_gt_obj, coco_dt_obj, iouType='bbox')
-    #     # our definition of small, medium and large.
-    #     evaluator.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 128 ** 2], [128 ** 2, 384 ** 2], [384 ** 2, 1e5 ** 2]]
-    #     evaluator.evaluate()
-    #     evaluator.accumulate()
-    #     evaluator.summarize()
 
 
 if __name__ == '__main__':

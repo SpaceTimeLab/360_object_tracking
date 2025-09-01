@@ -9,12 +9,12 @@ from ultralytics import YOLO
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
+from detectron2.layers import batched_nms
 
 # import the Perspective_and_Equirectangular library
 import lib.Equirec2Perspec as E2P
 
 import time
-from detectron2.layers import batched_nms
 
 
 # function used to load a YOLO or Faster RCNN model according to the users' demands

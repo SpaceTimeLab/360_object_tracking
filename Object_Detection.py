@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'detectron2'))
 import argparse
 import time
 import torch
