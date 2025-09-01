@@ -1,28 +1,18 @@
 import sys, os
-
-# assume script lives alongside detectron2/
-proj_root = os.path.dirname(__file__)
-if proj_root not in sys.path:
-    sys.path.insert(0, proj_root)
-
-
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'detectron2'))
 import argparse
 import time
 import torch
 import cv2
 import numpy as np
-from torchvision.ops import batched_nms
-from ultralytics import YOLO
-
 from panoramic_detection import improved_OD as OD
 from deep_sort.deep_sort import DeepSort
 from panoramic_detection.draw_output import draw_boxes
-
 from detectron2 import model_zoo
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from panoramic_detection.improved_OD import load_model
-from strong_sort_new import StrongSort
+from strongsort.strong_sort_new import StrongSort
 
 
 # function used to realize object tracking on a panoramic video
@@ -131,7 +121,7 @@ def Object_Tracking(
             track_classes = track_outputs[:, 4]
             track_scores = track_outputs[:, 5]
             identities = track_outputs[:, -1]
-            im = draw_boxes(
+            im, _ = draw_boxes(
                 im, bbox_xyxy, track_classes, track_scores, video_width, identities
             )
         outputfile.write(im)
