@@ -8,7 +8,7 @@ This package is used for object detection, object tracking, and overtaking behav
 
 The approach improves detection by projecting equirectangular frames into four overlapping perspective sub-images, applying detectors, and then reprojecting and merging bounding boxes to handle distortions and long objects. [YOLOv12](https://github.com/sunsmarterjie/yolov12) models pre-trained on the COCO dataset are used as detectors. Tracking is based on StrongSORT (see https://github.com/yitai-cheng/StrongSORT), modified to incorporate object category information and boundary continuity, reducing false positives and ID switches in panoramic views. The overtaking detection module builds on these tracking results, identifying and classifying overtaking manoeuvres by vehicles around cyclists.
 
-![](images_in_markdown/figure4.png)
+![](images_in_markdown/overview.jpg)
 
 ## Dependencies and Installation
 
@@ -51,7 +51,7 @@ pip install -e git+https://github.com/facebookresearch/detectron2.git@5aeb252b19
 pip install pillow==9.5.0 # see https://github.com/facebookresearch/detectron2/issues/5010#issuecomment-1752284625
 ```
 
-4. Download the pre-trained ReID network used in DeepSORT:
+4. Download the pre-trained ReID network used in StrongSORT:
 ```
 cd deep_sort/deep/checkpoint
 pip install gdown
@@ -98,8 +98,8 @@ The following arguments are provided:
 |:-------------------------------:| :----:  | :----:  |:---------------------:|
 |        INPUT_VIDEO_PATH         | Path of the input video | ✔️ |                       |
 |        OUTPUT_VIDEO_PATH        | Path of the output video | ✔️ |                       |
-| PREVENT_DIFFERENT_CLASSES_MATCH | A boolean value which determines whether to use the support for multiple categories in DeepSORT |  |         True          |
-|      MATCH_ACROSS_BOUNDARY      | A boolean value which determines whether to use the support for boundary continuity in DeepSORT |  |         True          |
+| PREVENT_DIFFERENT_CLASSES_MATCH | A boolean value which determines whether to use the support for multiple categories in StrongSORT |  |         True          |
+|      MATCH_ACROSS_BOUNDARY      | A boolean value which determines whether to use the support for boundary continuity in StrongSORT |  |         True          |
 |        CLASSES_TO_DETECT        | Index numbers of the categories to detect in the COCO dataset |  | [0, 1, 2, 3, 5, 7, 9] |
 |               FOV               | Field of view of the sub images |  |          120          |
 |             THETAS              | A list which contains the theta of each sub image (The length should be the same as the number of sub images) |  |   [0, 90, 180, 270]   |
@@ -123,8 +123,8 @@ The following arguments are provided:
 | INPUT_VIDEO_PATH  | Path of the input video | ✔️ |                                   |
 | OUTPUT_VIDEO_PATH  | Path of the output video | ✔️ |                                   |
 | MODE | A string that determines which kind of overtaking behaviour to detect, "Confirmed" or "Unconfirmed" |  |            "Confirmed"            |
-| PREVENT_DIFFERENT_CLASSES_MATCH  | A boolean value which determines whether to use the support for multiple categories in DeepSORT |  |               True                |
-| MATCH_ACROSS_BOUNDARY  | A boolean value which determines whether to use the support for boundary continuity in DeepSORT |  |               True                |
+| PREVENT_DIFFERENT_CLASSES_MATCH  | A boolean value which determines whether to use the support for multiple categories in StrongSORT |  |               True                |
+| MATCH_ACROSS_BOUNDARY  | A boolean value which determines whether to use the support for boundary continuity in StrongSORT |  |               True                |
 | CLASSES_TO_DETECT  | Index numbers of the categories to detect in the COCO dataset |  |       [0, 1, 2, 3, 5, 7, 9]       |
 | CLASSES_TO_DETECT_MOVEMENT  | Index numbers of the categories for movement detection in the COCO dataset, which should be a subset of classes_to_detect |  |             [2, 5, 7]             |
 | SIZE_THRESHOLDS  | A set of size thresholds which should share the same length with classes_to_detect_movement, if the size of a track of a certain class is larger than the corresponding threshold, then it is considered as close to the user |  | [500 * 500, 900 * 900, 600 * 600] |
