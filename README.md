@@ -8,7 +8,7 @@ This package is used for object detection, object tracking, and overtaking behav
 
 The approach improves detection by projecting equirectangular frames into four overlapping perspective sub-images, applying detectors, and then reprojecting and merging bounding boxes to handle distortions and long objects. [YOLOv12](https://github.com/sunsmarterjie/yolov12) models pre-trained on the COCO dataset are used as detectors. Tracking is based on StrongSORT (see https://github.com/yitai-cheng/StrongSORT), modified to incorporate object category information and boundary continuity, reducing false positives and ID switches in panoramic views. The overtaking detection module builds on these tracking results, identifying and classifying overtaking manoeuvres by vehicles around cyclists.
 
-![overview](images_in_markdown/overview.jpg)
+![overview](./images_in_markdown/overview.jpg)
 
 ## Dependencies and Installation
 
