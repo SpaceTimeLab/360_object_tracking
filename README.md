@@ -169,13 +169,18 @@ See `evaluation_code/` for evaluation scripts. They:
 If you find the project useful in your research, please consider citing:
 
 ```
-@misc{guo2024multipleobjectdetectiontracking,
-      title={Multiple Object Detection and Tracking in Panoramic Videos for Cycling Safety Analysis},
-      author={Jingwei Guo and Yitai Cheng and Meihui Wang and Ilya Ilyankou and Natchapon Jongwiriyanurak and Xiaowei Gao and Nicola Christie and James Haworth},
-      year={2024},
-      eprint={2407.15199},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2407.15199},
+@article{https://doi.org/10.1049/itr2.70228,
+author = {Guo, Jingwei and Cheng, Yitai and Wang, Meihui and Ilyankou, Ilya and Jongwiriyanurak, Natchapon and Gao, Xiaowei and Christie, Nicola and Haworth, James},
+title = {Multiple Object Detection and Tracking in Panoramic Videos for Cycling Safety Analysis},
+journal = {IET Intelligent Transport Systems},
+volume = {20},
+number = {1},
+pages = {e70228},
+keywords = {artificial intelligence, bicycles, computer vision, object recognition, object tracking, road traffic},
+doi = {https://doi.org/10.1049/itr2.70228},
+url = {https://ietresearch.onlinelibrary.wiley.com/doi/abs/10.1049/itr2.70228},
+eprint = {https://ietresearch.onlinelibrary.wiley.com/doi/pdf/10.1049/itr2.70228},
+abstract = {ABSTRACT Cyclists face a disproportionate risk of injury, yet conventional crash records are too sparse to identify risk factors at fine spatial and temporal scales. Recently, naturalistic studies have used video data to capture complex behavioural and infrastructural risk factors. A promising format is panoramic video, which can record 360\$^\circ\$ views around a rider. However, its use is limited by distortions, large numbers of small objects and boundary continuity, which cannot be handled using existing computer vision models. This research proposes a novel three-step framework: (1) enhancing object detection accuracy on panoramic imagery by segmenting and projecting the original 360\$^\circ\$ images into sub-images; (2) modifying multi-object tracking models to incorporate boundary continuity and object category information; and (3) validation through a real-world application of vehicle overtaking detection. The methodology is evaluated using panoramic videos recorded by cyclists on London's roadways under diverse conditions. Experimental results demonstrate improvements over baselines, achieving higher average precision across varying image resolutions. Moreover, the enhanced tracking approach yields a 10.0\% decrease in identification-switches and a 2.7\% improvement in identification precision. The overtaking detection task achieves a high F-score of 0.82, illustrating the practical effectiveness of the proposed method in real-world cycling safety scenarios.},
+year = {2026}
 }
 ```
